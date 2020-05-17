@@ -1,0 +1,3 @@
+option('package-origin', type : 'string',
+       value : 'https://github.com/ashwoods/crash-gst-plugin',
+       yield : true, description : 'package origin URL to use in plugins')

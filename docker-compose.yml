@@ -1,0 +1,30 @@
+# Compose as a task runner
+version: "3.7"
+
+# define base extension
+x-base: &BASE
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/src
+      - ./tests:/tests   
+    environment:
+      # Optional during development
+      - GST_PLUGIN_PATH=/src/build/gst/
+      - GST_DEBUG
+
+# targets
+services:
+
+  # Docker service target for development and testing
+  build:  
+    <<: *BASE  
+    command: /bin/bash -c "meson build/ && ninja -C build/"
+  shell: 
+    <<: *BASE  
+    command: /bin/bash 
+  test:
+    <<: *BASE
+    command: pytest -s /tests
+
