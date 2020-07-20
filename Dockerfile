@@ -36,7 +36,7 @@ RUN set -ex \
 
 # --- TEST --- #
 
-RUN pip3 install mixtape[test]
+RUN pip3 install mixtape[test]==0.5.1
 
 WORKDIR /src
 

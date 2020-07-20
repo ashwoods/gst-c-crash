@@ -1,8 +1,6 @@
 # 💥 Gst-Crashy [WIP]
 
---- Work in progress ---
-
-Gst plugin and tutorials for causing planned leaks and crashes.
+This is a Gst plugin for causing leaks and crashes.
 
 You want to know how to debug problems before they surface. This repository's
 goal is two-fold:
@@ -30,5 +28,3 @@ The plugin contains two filter elements based on `GstBaseTransform`:
 [WIP]
 
 ## Contributing
-
-## Changelog

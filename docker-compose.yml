@@ -10,7 +10,6 @@ x-base: &BASE
       - .:/src
       - ./tests:/tests   
     environment:
-      # Optional during development
       - GST_PLUGIN_PATH=/src/build/gst/
       - GST_DEBUG
 
