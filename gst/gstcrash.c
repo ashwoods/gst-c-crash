@@ -1,6 +1,5 @@
 /*
  * GStreamer
- * Copyright (C) 2006 Stefan Kost <ensonic@users.sf.net>
  * Copyright (C) 2020 Ashley Camba Garrido <ashwoods@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
