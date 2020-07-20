@@ -1,8 +1,5 @@
 /* GStreamer
- * Copyright (C) 1999,2000 Erik Walthinsen <omega@cse.ogi.edu>
- *                    2000 Wim Taymans <wtay@chello.be>
- *                    2005 Wim Taymans <wim@fluendo.com>
- *                    2005 David Schleef <ds@schleef.org>
+ * Copyright (C) Ashley Camba Garrido <ashwoods@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -31,19 +28,79 @@
 #include "config.h"
 #endif
 
-
 #include <gst/gst.h>
 #include <gst/base/base.h>
-// #include <gst/controller/controller.h>
-
 #include "gstfaulty.h"
+
+#define DEFAULT_NUM_BUFFERS     100
+#define DEFAULT_METHOD          FAULTY_SIGSEGV
+
+#define GST_TYPE_FAULTY_METHOD (gst_faulty_method_get_type())
+static GType
+gst_faulty_method_get_type (void)
+{
+  static GType faulty_method_type = 0;
+  static const GEnumValue faulty_method[] = {
+    {FAULTY_SIGSEGV, "SIGSEGV", "sigsegv"},
+    {FAULTY_SIGBUS, "SIGBUS", "sigbus"},
+    {FAULTY_SIGABRT, "SIGABRT", "sigabrt"},
+    {FAULTY_START_ERROR, "START ERROR", "start"},
+    {FAULTY_STOP_ERROR, "STOP ERROR", "stop"},
+    {FAULTY_CUSTOM_METHOD, "CUSTOM METHOD", "custom"},
+    {0, NULL, NULL},
+  };
+
+  if (!faulty_method_type) {
+    faulty_method_type =
+        g_enum_register_static ("FaultyMethod", faulty_method);
+  }
+  return faulty_method_type;
+}
 
 enum
 {
   PROP_0,
-  FIXME_PROPERTY_EXAMPLE,
+  PROP_NUM_BUFFERS,
+  PROP_METHOD,
 };
 
+void static
+faulty_signal_sigsegv()
+{
+  raise(SIGSEGV);
+}
+
+void static
+faulty_signal_sigbus()
+{
+  raise(SIGBUS);
+}
+
+void static
+faulty_signal_sigabrt()
+{
+  raise(SIGABRT);
+}
+
+void static
+faulty_custom_method()
+{
+  *(int*)0 = 0;
+}
+
+void static 
+faulty_call_method(u_int8_t const index)
+{
+  static void (*pf[])(void) = {
+    faulty_signal_sigsegv,
+    faulty_signal_sigbus,
+    faulty_signal_sigabrt,
+    faulty_custom_method};
+  if (index < sizeof(pf) / sizeof(*pf))
+    {
+      pf[index]();
+    }
+}
 
 static GstStaticPadTemplate sinktemplate = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -66,6 +123,12 @@ GST_DEBUG_CATEGORY_STATIC (gst_faulty_debug);
 G_DEFINE_TYPE_WITH_CODE (GstFaulty, gst_faulty, GST_TYPE_BASE_TRANSFORM,
     _do_init);
 
+static void gst_faulty_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec);
+static void gst_faulty_get_property (GObject * object, guint prop_id,
+    GValue * value, GParamSpec * pspec);
+static gboolean gst_faulty_start(GstBaseTransform * trans);
+static gboolean gst_faulty_stop(GstBaseTransform * trans);
 static GstFlowReturn gst_faulty_transform_ip (GstBaseTransform * base,
     GstBuffer * buf);
 
@@ -73,17 +136,16 @@ static GstFlowReturn gst_faulty_transform_ip (GstBaseTransform * base,
 static void
 gst_faulty_class_init (GstFaultyClass * klass)
 {
-  //GObjectClass *gobject_class;
+  GObjectClass *gobject_class;
   GstElementClass *gstelement_class;
   GstBaseTransformClass *trans_class;
 
-  //gobject_class = G_OBJECT_CLASS (klass);
+  gobject_class = G_OBJECT_CLASS (klass);
   gstelement_class = GST_ELEMENT_CLASS (klass);
   trans_class = GST_BASE_TRANSFORM_CLASS (klass);
   
-  
- // gobject_class->set_property = gst_faulty_set_property;
- // gobject_class->get_property = gst_faulty_get_property;
+  gobject_class->set_property = gst_faulty_set_property;
+  gobject_class->get_property = gst_faulty_get_property;
 
 
   gst_element_class_set_static_metadata (gstelement_class,
@@ -96,21 +158,112 @@ gst_faulty_class_init (GstFaultyClass * klass)
 
   
   trans_class->transform_ip = GST_DEBUG_FUNCPTR (gst_faulty_transform_ip);
+  trans_class->start = GST_DEBUG_FUNCPTR (gst_faulty_start);
+  trans_class->stop = GST_DEBUG_FUNCPTR (gst_faulty_stop);
+
+  g_object_class_install_property (gobject_class, PROP_METHOD,
+      g_param_spec_enum ("method", "Error Method",
+          "Select the error method",
+          GST_TYPE_FAULTY_METHOD,
+          FAULTY_SIGSEGV, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_NUM_BUFFERS,
+      g_param_spec_int ("num-buffers", "Numm buffers",
+          "Number of buffers to output before raising an error",
+          0, G_MAXINT, DEFAULT_NUM_BUFFERS, G_PARAM_READWRITE |
+          G_PARAM_STATIC_STRINGS));
+
 }
 
 static void
-gst_faulty_init (GstFaulty * filter)
+gst_faulty_init (GstFaulty * faulty)
 {
-  //GstBaseTransform *trans = GST_BASE_TRANSFORM (filter);
+  
+  
+  GstBaseTransform *trans = GST_BASE_TRANSFORM (faulty);
+  gst_base_transform_set_in_place (trans, TRUE);
+  gst_base_transform_set_passthrough (trans, TRUE);
+
+  faulty->num_buffers = DEFAULT_NUM_BUFFERS;
+  faulty->method = DEFAULT_METHOD;
+  faulty->num_buffers_left = faulty->num_buffers;
 }
 
 static GstFlowReturn
 gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
 {
-  /*
-  TODO: types of leaks: gst_buffer_map, gst_object_ref, a few calls that you should g_free. 
-  */
-  
-  return GST_FLOW_OK;
+  GstFaulty *faulty = GST_FAULTY (base);
+  if (faulty->num_buffers_left > 0) {
+    GST_INFO ("Calling something %d", faulty->num_buffers_left);
+    faulty->num_buffers_left--;
+    return GST_FLOW_OK;
+  }
+  faulty_call_method(faulty->method);
+  return GST_FLOW_OK; // this shouldn't happen 
+}
+
+static gboolean
+gst_faulty_start (GstBaseTransform * trans)
+{
+  GstFaulty *faulty = GST_FAULTY(trans);
+  if (faulty->method == FAULTY_START_ERROR) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+}
+
+static gboolean
+gst_faulty_stop (GstBaseTransform * trans)
+{
+  GstFaulty *faulty = GST_FAULTY(trans);
+  if (faulty->method == FAULTY_STOP_ERROR) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+}
+
+static void
+gst_faulty_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstFaulty *faulty;
+
+  faulty = GST_FAULTY(object);
+
+  switch (prop_id) {
+    case PROP_METHOD:{
+      faulty->method = g_value_get_enum (value);
+      break;
+    }
+    case PROP_NUM_BUFFERS:
+      faulty->num_buffers = g_value_get_int (value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+gst_faulty_get_property (GObject * object, guint prop_id, GValue * value,
+    GParamSpec * pspec)
+{
+  GstFaulty *faulty;
+
+  faulty = GST_FAULTY (object);
+
+  switch (prop_id) {
+    case PROP_METHOD:
+      g_value_set_enum (value, faulty->method);
+      break;
+    case PROP_NUM_BUFFERS:
+      g_value_set_int (value, faulty->num_buffers);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
 }
 
