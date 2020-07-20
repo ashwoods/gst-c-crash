@@ -26,11 +26,20 @@
 
 G_BEGIN_DECLS
 
+// /* Standard boilerplate stuff */
+// typedef struct _GstLeaky GstLeaky;
+// typedef struct _GstLeakyClass GstLeakyClass;
 
 /* #defines don't like whitespacey bits */
 #define GST_TYPE_LEAKY (gst_leaky_get_type())
 G_DECLARE_FINAL_TYPE (GstLeaky, gst_leaky, GST, LEAKY,
     GstBaseTransform)
+
+typedef enum
+{
+  LEAKY_MALLOC,
+  LEAKY_REF,
+} LeakyMethod;
 
 /**
  * GstLeaky:
@@ -44,7 +53,8 @@ struct _GstLeaky
   /* properties */
   gboolean silent;
   gint num_buffers;
-  gint max_leaks;
+  gint num_buffers_left;
+  LeakyMethod method;
 };
 
 struct _GstLeakyClass {
@@ -58,3 +68,4 @@ GType gst_leaky_get_type (void);
 
 G_END_DECLS
 #endif /* __GST_LEAKY_H__ */
+
