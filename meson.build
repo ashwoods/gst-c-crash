@@ -1,7 +1,7 @@
 project('crash-gst-plugin', 'c',
   version : '0.1.0',
   default_options : [ 'warning_level=2',
-                      'buildtype=debugoptimized' ])
+                      'buildtype=debug' ])
 
 gst_req = '>= 1.0.0'
 gst_crash_version = meson.project_version()
