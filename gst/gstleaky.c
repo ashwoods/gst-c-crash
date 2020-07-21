@@ -60,10 +60,12 @@ enum
   PROP_METHOD,
 };
 
+// define global to avoid optimizer optiizaing it away
+int *malloc_ptr;
 void static
 leaky_malloc_leak(GstBaseTransform * base, GstBuffer * buf)
 {
-  int *ptr = (int *) malloc(sizeof(int));
+  malloc_ptr = (int *) malloc(sizeof(int));
   // no free(ptr);  
 }
 

@@ -85,6 +85,8 @@ faulty_signal_sigabrt()
 void static
 faulty_custom_method()
 {
+  // this isn't gauranteed to fail depending on compiler/platform
+  // mainly meant as a placeholder for adaptation
   *(int*)0 = 0;
 }
 
