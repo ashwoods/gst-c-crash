@@ -233,10 +233,9 @@ gst_faulty_set_property (GObject * object, guint prop_id,
   faulty = GST_FAULTY(object);
 
   switch (prop_id) {
-    case PROP_METHOD:{
+    case PROP_METHOD:
       faulty->method = g_value_get_enum (value);
       break;
-    }
     case PROP_NUM_BUFFERS:
       faulty->num_buffers = g_value_get_int (value);
       break;

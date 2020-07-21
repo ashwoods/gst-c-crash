@@ -203,10 +203,9 @@ gst_leaky_set_property (GObject * object, guint prop_id,
   leaky = GST_LEAKY(object);
 
   switch (prop_id) {
-    case PROP_METHOD:{
+    case PROP_METHOD:
       leaky->method = g_value_get_enum (value);
       break;
-    }
     case PROP_NUM_BUFFERS:
       leaky->num_buffers = g_value_get_int (value);
       break;
