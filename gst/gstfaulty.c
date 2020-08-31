@@ -47,6 +47,7 @@ gst_faulty_method_get_type (void)
     {FAULTY_START_ERROR, "START ERROR", "start"},
     {FAULTY_STOP_ERROR, "STOP ERROR", "stop"},
     {FAULTY_CUSTOM_METHOD, "CUSTOM METHOD", "custom"},
+    {FAULTY_GST_ERROR, "GST ERROR", "gst"},
     {0, NULL, NULL},
   };
 
@@ -64,25 +65,25 @@ enum
   PROP_METHOD,
 };
 
-void static
+static void
 faulty_signal_sigsegv()
 {
   raise(SIGSEGV);
 }
 
-void static
+static void
 faulty_signal_sigbus()
 {
   raise(SIGBUS);
 }
 
-void static
+static void
 faulty_signal_sigabrt()
 {
   raise(SIGABRT);
 }
 
-void static
+static void
 faulty_custom_method()
 {
   // this isn't gauranteed to fail depending on compiler/platform
@@ -90,7 +91,7 @@ faulty_custom_method()
   *(int*)0 = 0;
 }
 
-void static 
+static void
 faulty_call_method(u_int8_t const index)
 {
   static void (*pf[])(void) = {
@@ -103,6 +104,7 @@ faulty_call_method(u_int8_t const index)
       pf[index]();
     }
 }
+
 
 static GstStaticPadTemplate sinktemplate = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
@@ -181,7 +183,6 @@ static void
 gst_faulty_init (GstFaulty * faulty)
 {
   
-  
   GstBaseTransform *trans = GST_BASE_TRANSFORM (faulty);
   gst_base_transform_set_in_place (trans, TRUE);
   gst_base_transform_set_passthrough (trans, TRUE);
@@ -196,12 +197,22 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
 {
   GstFaulty *faulty = GST_FAULTY (base);
   if (faulty->num_buffers_left > 0) {
-    GST_INFO ("Calling something %d", faulty->num_buffers_left);
+    GST_INFO ("Calling faulty in %d frames.", faulty->num_buffers_left);
     faulty->num_buffers_left--;
     return GST_FLOW_OK;
   }
-  faulty_call_method(faulty->method);
-  return GST_FLOW_OK; // this shouldn't happen 
+  if (faulty->method == FAULTY_GST_ERROR) {
+    GST_ELEMENT_ERROR(GST_ELEMENT(faulty),
+                      RESOURCE,
+                      READ,
+                      ("Cannot do this anymore."),
+                      (NULL));
+    return GST_FLOW_ERROR;
+  } else {
+    faulty_call_method(faulty->method);
+    return GST_FLOW_OK; // code should never reach here
+  }
+
 }
 
 static gboolean
@@ -240,6 +251,7 @@ gst_faulty_set_property (GObject * object, guint prop_id,
       break;
     case PROP_NUM_BUFFERS:
       faulty->num_buffers = g_value_get_int (value);
+      faulty->num_buffers_left = faulty->num_buffers; 
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
