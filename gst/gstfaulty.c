@@ -48,6 +48,7 @@ gst_faulty_method_get_type (void)
     {FAULTY_STOP_ERROR, "STOP ERROR", "stop"},
     {FAULTY_CUSTOM_METHOD, "CUSTOM METHOD", "custom"},
     {FAULTY_GST_ERROR, "GST ERROR", "gst"},
+    {FAULTY_GOBJECT_ERROR, "GOBJECT ERROR", "gobject"},
     {0, NULL, NULL},
   };
 
@@ -208,7 +209,12 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
                       ("Cannot do this anymore."),
                       (NULL));
     return GST_FLOW_ERROR;
-  } else {
+  }
+  else if (faulty->method == FAULTY_GOBJECT_ERROR) {
+    GST_ERROR_OBJECT(faulty, "Boom!");
+    return GST_FLOW_ERROR;
+  }
+  else {
     faulty_call_method(faulty->method);
     return GST_FLOW_OK; // code should never reach here
   }
