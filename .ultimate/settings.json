@@ -13,7 +13,7 @@
     "checks": [
       "ninja -C build",
       {
-        "command": "GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest -q -p no:cacheprovider tests --deselect tests/test_faulty.py::test_faulty_setup",
+        "command": "GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest -q -p no:cacheprovider tests",
         "timeout": 180
       }
     ]
