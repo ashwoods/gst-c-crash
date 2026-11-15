@@ -1,0 +1,21 @@
+{
+  "extensions": {
+    "disable": [
+      "update"
+    ]
+  },
+  "isolates": {
+    "worktree": {
+      "setup": ["sh -e .ultimate/worktree-setup.sh"]
+    }
+  },
+  "lander": {
+    "checks": [
+      "ninja -C build",
+      {
+        "command": "GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest -q -p no:cacheprovider tests --deselect tests/test_faulty.py::test_faulty_setup",
+        "timeout": 180
+      }
+    ]
+  }
+}
