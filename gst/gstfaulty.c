@@ -49,6 +49,7 @@ gst_faulty_method_get_type (void)
     {FAULTY_CUSTOM_METHOD, "CUSTOM METHOD", "custom"},
     {FAULTY_GST_ERROR, "GST ERROR", "gst"},
     {FAULTY_GOBJECT_ERROR, "GOBJECT ERROR", "gobject"},
+    {FAULTY_HANG, "HANG", "hang"},
     {0, NULL, NULL},
   };
 
@@ -135,7 +136,8 @@ static void gst_faulty_set_property (GObject * object, guint prop_id,
 static void gst_faulty_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 static gboolean gst_faulty_start(GstBaseTransform * trans);
-static gboolean gst_faulty_stop(GstBaseTransform * trans);
+static GstStateChangeReturn gst_faulty_change_state (GstElement * element,
+    GstStateChange transition);
 static GstFlowReturn gst_faulty_transform_ip (GstBaseTransform * base,
     GstBuffer * buf);
 
@@ -163,10 +165,9 @@ gst_faulty_class_init (GstFaultyClass * klass)
   gst_element_class_add_static_pad_template (gstelement_class, &srctemplate);
   gst_element_class_add_static_pad_template (gstelement_class, &sinktemplate);
 
-  
+  gstelement_class->change_state = GST_DEBUG_FUNCPTR (gst_faulty_change_state);
   trans_class->transform_ip = GST_DEBUG_FUNCPTR (gst_faulty_transform_ip);
   trans_class->start = GST_DEBUG_FUNCPTR (gst_faulty_start);
-  trans_class->stop = GST_DEBUG_FUNCPTR (gst_faulty_stop);
 
   g_object_class_install_property (gobject_class, PROP_METHOD,
       g_param_spec_enum ("method", "Error Method",
@@ -216,6 +217,13 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
     GST_ERROR_OBJECT(faulty, "Boom!");
     return GST_FLOW_ERROR;
   }
+  else if (faulty->method == FAULTY_HANG) {
+    /* block the streaming thread for good while it holds the stream lock,
+     * so data stops flowing and the pipeline cannot be shut down either */
+    GST_ERROR_OBJECT (faulty, "Hanging the streaming thread.");
+    for (;;)
+      g_usleep (G_USEC_PER_SEC);
+  }
   else {
     faulty_call_method(faulty->method);
     return GST_FLOW_OK; // code should never reach here
@@ -234,15 +242,24 @@ gst_faulty_start (GstBaseTransform * trans)
   }
 }
 
-static gboolean
-gst_faulty_stop (GstBaseTransform * trans)
+static GstStateChangeReturn
+gst_faulty_change_state (GstElement * element, GstStateChange transition)
 {
-  GstFaulty *faulty = GST_FAULTY(trans);
-  if (faulty->method == FAULTY_STOP_ERROR) {
-    return FALSE;
-  } else {
-    return TRUE;
+  GstFaulty *faulty = GST_FAULTY (element);
+  GstStateChangeReturn ret;
+
+  ret = GST_ELEMENT_CLASS (parent_class)->change_state (element, transition);
+
+  /* fail READY->NULL, not PAUSED->READY: a failure there stops the bin from
+   * shutting down the elements upstream, whose streaming threads keep
+   * running and hang gst_deinit() */
+  if (faulty->method == FAULTY_STOP_ERROR &&
+      transition == GST_STATE_CHANGE_READY_TO_NULL) {
+    GST_ELEMENT_ERROR (faulty, CORE, STATE_CHANGE, ("Failed to stop."),
+        (NULL));
+    return GST_STATE_CHANGE_FAILURE;
   }
+  return ret;
 }
 
 static void

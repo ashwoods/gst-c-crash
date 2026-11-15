@@ -45,6 +45,7 @@ typedef enum
   FAULTY_CUSTOM_METHOD,
   FAULTY_GST_ERROR,
   FAULTY_GOBJECT_ERROR,
+  FAULTY_HANG,
 } FaultyMethod;
 
 /**

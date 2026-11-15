@@ -8,5 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Faulty tests run each method in a gst-launch-1.0 subprocess and check its exit signal or error, so a crash no longer kills pytest. The `custom` and `stop` methods are marked as known failures.
 
+### Added
+- Faulty's `hang` method blocks the streaming thread for good once `num-buffers` have passed, so the pipeline stalls and cannot be shut down, for testing watchdogs and timeouts.
+
 ### Fixed
+- Faulty's `stop` method now fails the READY→NULL state change with a "Failed to stop." error instead of hanging gst-launch-1.0. Its failing `stop()` left the upstream elements running.
 - Faulty's `custom` method now crashes with SIGSEGV: methods map to their crash functions explicitly instead of indexing a table by the enum value, and the null-pointer write is volatile so the compiler cannot delete it.

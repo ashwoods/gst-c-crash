@@ -12,7 +12,7 @@ import pytest
 TIMEOUT = 10
 
 
-def launch(method=None):
+def launch(method=None, timeout=TIMEOUT):
     faulty = "faulty num-buffers=5" + (f" method={method}" if method else "")
     return subprocess.run(
         ["gst-launch-1.0", "videotestsrc", "num-buffers=50", "!",
@@ -20,7 +20,7 @@ def launch(method=None):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        timeout=TIMEOUT,
+        timeout=timeout,
         # GST_PLUGIN_PATH is inherited; the debug log shows faulty's own errors
         env={**os.environ, "GST_DEBUG": "faulty:1"},
     )
@@ -48,16 +48,18 @@ def test_signal(method, sig):
         ("gst", "ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
                 " Cannot do this anymore."),
         ("gobject", "Boom!"),
-        pytest.param(
-            "stop", "Failed to deactivate pad faulty0:sink",
-            marks=pytest.mark.xfail(
-                raises=subprocess.TimeoutExpired, strict=True,
-                reason="a failing stop() leaves videotestsrc's task running, "
-                       "so gst-launch hangs in gst_deinit"),
-        ),
+        ("stop", "ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
+                 " Failed to stop."),
     ],
 )
 def test_error(method, text):
     p = launch(method)
     assert p.returncode != 0, p.stdout
     assert text in p.stdout
+
+
+def test_hang():
+    with pytest.raises(subprocess.TimeoutExpired) as e:
+        launch("hang", timeout=3)
+    # the output read before the child was killed is bytes, even in text mode
+    assert b"Hanging the streaming thread." in e.value.output
