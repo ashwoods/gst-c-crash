@@ -33,14 +33,7 @@ def launch(method=None):
         ("sigsegv", signal.SIGSEGV),
         ("sigbus", signal.SIGBUS),
         ("sigabrt", signal.SIGABRT),
-        pytest.param(
-            "custom", signal.SIGSEGV,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="faulty_call_method indexes pf[] by the enum value, so "
-                       "FAULTY_CUSTOM_METHOD (5) is out of range and the "
-                       "null write never runs"),
-        ),
+        ("custom", signal.SIGSEGV),
     ],
 )
 def test_signal(method, sig):

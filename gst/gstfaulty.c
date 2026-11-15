@@ -87,23 +87,25 @@ faulty_signal_sigabrt()
 static void
 faulty_custom_method()
 {
-  // this isn't gauranteed to fail depending on compiler/platform
+  // a write to a null pointer; volatile so the compiler cannot delete it
   // mainly meant as a placeholder for adaptation
-  *(int*)0 = 0;
+  *(volatile int *) 0 = 0;
 }
 
 static void
-faulty_call_method(u_int8_t const index)
+faulty_call_method (FaultyMethod const method)
 {
-  static void (*pf[])(void) = {
-    faulty_signal_sigsegv,
-    faulty_signal_sigbus,
-    faulty_signal_sigabrt,
-    faulty_custom_method};
-  if (index < sizeof(pf) / sizeof(*pf))
-    {
-      pf[index]();
-    }
+  /* called through a table so the compiler cannot inline the crash away;
+   * methods without an entry here fail elsewhere and do nothing */
+  static void (*const pf[]) (void) = {
+    [FAULTY_SIGSEGV] = faulty_signal_sigsegv,
+    [FAULTY_SIGBUS] = faulty_signal_sigbus,
+    [FAULTY_SIGABRT] = faulty_signal_sigabrt,
+    [FAULTY_CUSTOM_METHOD] = faulty_custom_method,
+  };
+
+  if ((guint) method < G_N_ELEMENTS (pf) && pf[method])
+    pf[method] ();
 }
 
 
