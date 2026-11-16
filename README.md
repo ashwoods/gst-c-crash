@@ -8,10 +8,11 @@ goal is two-fold:
 - provide a few elements to test debug and crash reporting infrastructure and tooling.
 - provide a few tutorials and best practices on debugging gstreamer applications.
 
-The plugin contains two filter elements based on `GstBaseTransform`:
+The plugin contains three filter elements based on `GstBaseTransform`:
 
 - `leaky`: provides several mechanisms of leaking memory.
 - `faulty`: provides a few ways of crashing a pipeline.
+- `mangler`: breaks timestamps and events.
 
 ## Quickstart
 
@@ -49,9 +50,9 @@ Docker and a native build both use `build/`: delete it when you switch.
 
 ### Overview
 
-Both elements pass buffers through untouched until `num-buffers` buffers
+All three elements pass buffers through untouched until `num-buffers` buffers
 (default 100) have gone by, then misbehave on every buffer after that, the way
-`method` says.
+`method` (`mode` for mangler) says.
 
 #### Leaky
 
@@ -136,6 +137,36 @@ On Linux gst-launch-1.0 catches SIGSEGV and waits for a debugger
 (`Spinning. Please run 'gdb gst-launch-1.0 <pid>'`); pass `--no-fault` to let
 the signal kill it.
 
+#### Mangler
+
+mangler breaks timestamps and events instead of crashing, so a muxer, a sink,
+an app or gst-validate has something to notice. It logs what it does once, at
+ERROR level (`GST_DEBUG=mangler:1`).
+
+| `mode`                | What it does                                                  | What an app, muxer or tool sees |
+|-----------------------|---------------------------------------------------------------|---------------------------------|
+| `no-pts` (default)    | clears PTS and DTS                                            | qtmux fails with `Buffer has no PTS.` (exit 1); matroskamux only warns `Invalid buffer timestamp` |
+| `backwards`           | starts the timestamps over from the first buffer's            | qtmux logs `decreasing DTS value` errors but exits 0; identity's `check-imperfect-timestamp` posts one message, `delta=(gint64)-166666666` |
+| `gap`                 | moves the timestamps 1 s ahead, without a DISCONT flag        | identity posts `delta=(gint64)1000000000`; a sink with `sync=true` waits a second: 20 buffers take 1.8 s instead of 0.8 s |
+| `bad-duration`        | doubles every duration                                        | each buffer overlaps the next: identity posts `delta=(gint64)-33333333` for each; muxers say nothing |
+| `before-segment`      | pushes a new segment that starts 1 s after the buffer         | the sink drops the next second of buffers silently; `GST_DEBUG=basesink:5` logs `dropping buffer, out of clipping segment` |
+| `drop-eos`            | swallows EOS                                                  | the pipeline never ends (kill it); an mp4 has no `moov` atom, so it does not play |
+| `drop-segment`        | swallows segment events                                       | `Got data flow before segment event` warnings; gst-validate reports `buffer::before-segment` and `event::eos-without-segment` |
+| `drop-stream-start`   | swallows stream-start events                                  | `Got data flow before stream-start event` warnings, and no stream-start message on the bus |
+| `sticky-storm`        | sends the caps again before every buffer                      | gst-validate reports `event::caps-duplicate`; `fakesink silent=false` lists 16 caps events |
+
+```sh
+gst-launch-1.0 videotestsrc num-buffers=20 ! jpegenc ! mangler num-buffers=5 mode=no-pts ! qtmux ! fakesink
+```
+
+[docs/timestamps-and-events.md](docs/timestamps-and-events.md) shows the
+command and output that catches each mode.
+
+The stream's first segment and stream-start come before any buffer, so
+`drop-segment` and `drop-stream-start` do something only with `num-buffers=0`.
+`backwards` moves nothing then either, as it shifts by the distance from the
+first buffer.
+
 ## Contributing
 
 Run the tests in a virtualenv that sees the system's PyGObject and GStreamer
@@ -155,7 +186,10 @@ counts its leaked buffers with the leaks tracer (`ref`) or its lost blocks with
 macOS `leaks` (`malloc`, skipped elsewhere). The memory corruption tests run
 under valgrind where it is installed. The blocking tests check that `stall`
 triggers a watchdog and recovers, that `spin` burns CPU time and that
-`deadlock` blocks the pipeline and a property read. GitHub Actions runs
+`deadlock` blocks the pipeline and a property read. Each mangler mode runs in
+one too, and the test checks what an element or muxer downstream sees; the
+gst-validate tests skip where `gst-validate-1.0` is missing, as in Docker
+(Debian has no package for it). GitHub Actions runs
 `docker compose run --rm test`, valgrind included, on every push.
 
 The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU
