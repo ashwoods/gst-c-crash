@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Added
 - Faulty's `unref`, `double-free` and `use-after-free` methods corrupt memory on purpose: an extra buffer unref, a block freed twice, a write to a freed block. [docs/memory-corruption.md](docs/memory-corruption.md) shows what each looks like with and without valgrind, AddressSanitizer and `G_DEBUG=fatal-criticals`.
 - Faulty's `stall`, `spin` and `deadlock` methods block the streaming thread on purpose: `stall` sleeps and `spin` busy-loops for the new `stall-time` property (milliseconds, default 2000) and then both carry on, and `deadlock` locks two threads against each other for good. [docs/blocking.md](docs/blocking.md) shows how the watchdog element, the latency and rusage tracers, `top`, lldb and gdb find each. The Docker image includes gdb.
@@ -45,5 +47,6 @@ First release.
 - Faulty's `stop` method now fails the READY→NULL state change with a "Failed to stop." error instead of hanging gst-launch-1.0. Its failing `stop()` left the upstream elements running.
 - Faulty's `custom` method now crashes with SIGSEGV: methods map to their crash functions explicitly instead of indexing a table by the enum value, and the null-pointer write is volatile so the compiler cannot delete it.
 
-[Unreleased]: https://github.com/ashwoods/gst-c-crash/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ashwoods/gst-c-crash/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ashwoods/gst-c-crash/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ashwoods/gst-c-crash/releases/tag/v0.1.0
