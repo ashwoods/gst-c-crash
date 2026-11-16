@@ -126,6 +126,7 @@ static void gst_leaky_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec);
 static GstFlowReturn gst_leaky_transform_ip (GstBaseTransform * base,
     GstBuffer * buf);
+static gboolean gst_leaky_start (GstBaseTransform * base);
 
 
 static void
@@ -153,6 +154,7 @@ gst_leaky_class_init (GstLeakyClass * klass)
 
   
   trans_class->transform_ip = GST_DEBUG_FUNCPTR (gst_leaky_transform_ip);
+  trans_class->start = GST_DEBUG_FUNCPTR (gst_leaky_start);
 
   g_object_class_install_property (gobject_class, PROP_METHOD,
       g_param_spec_enum ("method", "Error Method",
@@ -180,6 +182,16 @@ gst_leaky_init (GstLeaky * leaky)
   leaky->num_buffers = DEFAULT_NUM_BUFFERS;
   leaky->method = DEFAULT_METHOD;
   leaky->num_buffers_left = leaky->num_buffers;
+}
+
+/* count down from num-buffers again each time the element starts */
+static gboolean
+gst_leaky_start (GstBaseTransform * base)
+{
+  GstLeaky *leaky = GST_LEAKY (base);
+
+  leaky->num_buffers_left = leaky->num_buffers;
+  return TRUE;
 }
 
 static GstFlowReturn
@@ -210,6 +222,7 @@ gst_leaky_set_property (GObject * object, guint prop_id,
       break;
     case PROP_NUM_BUFFERS:
       leaky->num_buffers = g_value_get_int (value);
+      leaky->num_buffers_left = leaky->num_buffers;
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

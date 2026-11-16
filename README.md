@@ -60,9 +60,8 @@ Both elements pass buffers through untouched until `num-buffers` buffers
 | `malloc` (default) | a 4-byte `malloc()` that is never freed                                    |
 | `ref`              | an extra reference on the buffer, so the whole frame and its memory stay alive |
 
-Leaky ignores `num-buffers` for now and always starts after 100 buffers. A
-`ref` leak is a full video frame, so bound the source: with 110 buffers both
-methods leak 10 times.
+A `ref` leak is a full video frame, so bound the source: with 110 buffers and
+the default `num-buffers` both methods leak 10 times.
 
 ```sh
 gst-launch-1.0 videotestsrc num-buffers=110 ! leaky method=ref ! fakesink
@@ -136,7 +135,9 @@ GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest tests
 
 Each faulty method runs in a `gst-launch-1.0 --no-fault` subprocess, and the
 test checks its exit signal or error message: a crashing pipeline inside
-pytest would kill the test run.
+pytest would kill the test run. Each leaky method runs in one too, and the test
+counts its leaked buffers with the leaks tracer (`ref`) or its lost blocks with
+macOS `leaks` (`malloc`, skipped elsewhere).
 
 The code follows GStreamer's style. `meson setup` installs a pre-commit hook
 that checks it with GNU indent and refuses to commit without it
