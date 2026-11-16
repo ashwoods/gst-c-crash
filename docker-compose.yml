@@ -25,5 +25,8 @@ services:
     command: /bin/bash 
   test:
     <<: *BASE
+    # the faulty tests crash on purpose: no core dumps in the repository
+    ulimits:
+      core: 0
     command: pytest -s /tests
 

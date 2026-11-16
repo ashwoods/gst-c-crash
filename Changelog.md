@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faulty's `unref`, `double-free` and `use-after-free` methods corrupt memory on purpose: an extra buffer unref, a block freed twice, a write to a freed block. [docs/memory-corruption.md](docs/memory-corruption.md) shows what each looks like with and without valgrind, AddressSanitizer and `G_DEBUG=fatal-criticals`.
 - Faulty's `stall`, `spin` and `deadlock` methods block the streaming thread on purpose: `stall` sleeps and `spin` busy-loops for the new `stall-time` property (milliseconds, default 2000) and then both carry on, and `deadlock` locks two threads against each other for good. [docs/blocking.md](docs/blocking.md) shows how the watchdog element, the latency and rusage tracers, `top`, lldb and gdb find each. The Docker image includes gdb.
 - The `mangler` element breaks timestamps and events on purpose after `num-buffers` buffers, with nine modes: `no-pts`, `backwards`, `gap`, `bad-duration`, `before-segment`, `drop-eos`, `drop-segment`, `drop-stream-start` and `sticky-storm`. [docs/timestamps-and-events.md](docs/timestamps-and-events.md) shows how qtmux, matroskamux, identity, basesink, gst-validate and a timeout catch each. The gst-validate tests skip where gst-validate-1.0 is missing, as in Docker.
+- A Justfile for the common tasks: `setup`, `build`, `test`, `inspect`, `indent`, `clean`, `install-hook` and the Docker `docker-build`, `docker-test` and `docker-shell`. `just` lists them.
 - A GitHub Actions workflow builds and tests the plugin in the Docker image on every push, valgrind tests included.
 
 ### Changed
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faulty's property getters and setters now take the object lock, as GStreamer elements do. The `deadlock` method relies on it: its helper thread keeps the lock, so an app's property reads freeze too.
 
 ### Fixed
+- `docker compose run --rm test` no longer leaves a core dump of a crashing faulty test in the repository.
 - The method enums are registered thread-safely, and leaky maps its methods explicitly instead of indexing a table by the enum value.
 - `meson setup` no longer needs gstreamer-check, and no longer tries to copy the pre-commit hook into `.git`, which failed silently; the README says how to install it.
 

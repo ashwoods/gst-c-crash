@@ -170,6 +170,11 @@ the first one's timestamp.
 
 ## Contributing
 
+The [Justfile](Justfile) wraps the common tasks: run `just` to list them.
+`just setup` creates the virtualenv and `build/`, `just test` builds and runs
+the tests (extra arguments go to pytest: `just test -k stall`), `just indent`
+checks the style and `just docker-test` runs the tests in Docker.
+
 Run the tests in a virtualenv that sees the system's PyGObject and GStreamer
 bindings (Homebrew `pygobject3`, Debian `python3-gst-1.0`). Install `mixtape`
 on its own: its `[test]` extra pins a pytest that breaks on current Python.
@@ -195,7 +200,9 @@ gst-validate tests skip where `gst-validate-1.0` is missing, as in Docker
 
 The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU
 indent (`brew install gnu-indent`, Debian `indent`) and refuses to commit
-without it. Install it with:
+without it. GStreamer's style comes from GNU indent 2.2.12 (Debian's); 2.2.13,
+Homebrew's, writes `GstBuffer *buf` and flags every `GstBuffer * buf`. Install
+it with:
 
 ```sh
 install -m 755 hooks/pre-commit.hook "$(git rev-parse --git-path hooks)/pre-commit"
