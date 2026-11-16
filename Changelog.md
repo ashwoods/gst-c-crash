@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- The README covers installation (native and Docker), every leaky and faulty method, how to see their leaks and crashes, and how to run the tests.
+- The Docker image is based on Debian bookworm, since bullseye's packages no longer install, and includes valgrind. It installs mixtape with a current pytest.
+- Faulty tests run gst-launch-1.0 with `--no-fault`, so a SIGSEGV kills it on Linux too instead of leaving it waiting for a debugger.
 - Faulty tests run each method in a gst-launch-1.0 subprocess and check its exit signal or error, so a crash no longer kills pytest. The `custom` and `stop` methods are marked as known failures.
 
 ### Added

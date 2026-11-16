@@ -15,7 +15,8 @@ TIMEOUT = 10
 def launch(method=None, timeout=TIMEOUT):
     faulty = "faulty num-buffers=5" + (f" method={method}" if method else "")
     return subprocess.run(
-        ["gst-launch-1.0", "videotestsrc", "num-buffers=50", "!",
+        # --no-fault: on Linux gst-launch catches SIGSEGV and spins for gdb
+        ["gst-launch-1.0", "--no-fault", "videotestsrc", "num-buffers=50", "!",
          *faulty.split(), "!", "fakesink"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

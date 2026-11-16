@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim 
+FROM debian:bookworm-slim 
 
 # --- RUNTIME --- #
 
@@ -15,7 +15,7 @@ RUN set -ex \
         libgstreamer1.0-0 \
         python3-gst-1.0 \
         python3-pip \
-        python3.8 \
+        python3 \
     && apt-get -yq clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,12 +31,14 @@ RUN set -ex \
         meson \
         ninja-build \
         python3-dev \
+        valgrind \
     && apt-get -yq clean \
     && rm -rf /var/lib/apt/lists/*
 
 # --- TEST --- #
 
-RUN pip3 install mixtape[test]==0.5.1
+# mixtape[test] pins pytest 5, which breaks on current Python
+RUN pip3 install --break-system-packages mixtape==0.5.1 pytest pytest-asyncio
 
 WORKDIR /src
 
