@@ -150,5 +150,10 @@ under valgrind where it is installed. GitHub Actions runs
 
 The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU
 indent (`brew install gnu-indent`, Debian `indent`) and refuses to commit
-without it; install it with `cp hooks/pre-commit.hook .git/hooks/pre-commit`. Record changes in
-[Changelog.md](Changelog.md).
+without it. Install it with:
+
+```sh
+install -m 755 hooks/pre-commit.hook "$(git rev-parse --git-path hooks)/pre-commit"
+```
+
+Record changes in [Changelog.md](Changelog.md).

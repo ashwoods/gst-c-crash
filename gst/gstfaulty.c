@@ -106,9 +106,9 @@ faulty_custom_method (GstBuffer * buf G_GNUC_UNUSED)
   *(volatile int *) 0 = 0;
 }
 
-/* a global, volatile pointer, so the compiler can neither drop the
- * allocations below nor see that the block is already freed */
-volatile int *volatile faulty_block;
+/* a volatile pointer, so the compiler can neither drop the allocations
+ * below nor see that the block is already freed */
+static volatile int *volatile faulty_block;
 
 static void
 faulty_unref (GstBuffer * buf)

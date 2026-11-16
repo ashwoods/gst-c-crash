@@ -19,11 +19,12 @@ What you see depends on the allocator, not on the bug:
 |------------------|-----------------------------------------------|---------------------------------------------------|
 | `double-free`    | `pointer being freed was not allocated`, SIGABRT | `free(): double free detected in tcache 2`, SIGABRT |
 | `use-after-free` | SIGTRAP inside `libsystem_malloc`, at a later `malloc()` | nothing at first, SIGABRT when the streaming thread ends (`unaligned tcache chunk detected`) |
-| `unref`          | CRITICALs from videotestsrc, then `Internal data stream error`; sometimes SIGTRAP | the same CRITICALs, then `Internal data stream error` |
+| `unref`          | `GST_IS_BUFFER` CRITICALs from videotestsrc, then `Internal data stream error`; sometimes SIGTRAP | a refcount CRITICAL, then `GST_IS_BUFFER` ones, then `Internal data stream error` |
 
 Only `double-free` stops where the bug is. The `use-after-free` crash happens
 in the allocator, and the `unref` one in whichever element touches the freed
-buffer next: here the source, which complains about its own frame:
+buffer next: here the source, which complains about its own frame (Linux;
+macOS shows only the second line):
 
 ```
 GStreamer-CRITICAL **: gst_mini_object_unref: assertion 'GST_MINI_OBJECT_REFCOUNT_VALUE (mini_object) > 0' failed
@@ -86,6 +87,10 @@ previously allocated by thread T1 (videotestsrc0:s) here:
 `double-free` gives `attempting double-free`. `unref` gives nothing: the bad
 accesses are in libgstreamer, which ASan did not compile. Use valgrind or
 fatal-criticals for refcount bugs, or build GStreamer itself with ASan.
+
+The plugin builds with `buildtype=debug` (`-O0`). In an optimised build the
+compiler turns the last call of `faulty_unref` and `faulty_double_free` into a
+tail call, so their own frames can vanish from these stacks.
 
 ## In the tests
 
