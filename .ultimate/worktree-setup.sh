@@ -8,4 +8,11 @@ set -e
   python3 -m venv --system-site-packages .venv
   .venv/bin/pip install -q --disable-pip-version-check 'mixtape==0.5.1' pytest pytest-asyncio
 }
-[ -d build ] || meson setup build >/dev/null
+# meson wraps the compiler in sccache when it is installed, and sccache puts
+# its socket in TMPDIR: the lander's checks set one too long for a socket
+# path ("path must be shorter than SUN_LEN"), so build without it.
+if [ ! -d build ]; then
+  CC=cc meson setup build >/dev/null
+elif grep -q sccache build/build.ninja; then
+  CC=cc meson setup --wipe build >/dev/null
+fi
