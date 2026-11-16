@@ -38,6 +38,8 @@ RUN set -ex \
 
 # --- TEST --- #
 
+# bookworm has no gst-validate package, so the tests that use it skip here
+
 # mixtape[test] pins pytest 5, which breaks on current Python
 RUN pip3 install --break-system-packages mixtape==0.5.1 pytest pytest-asyncio
 
