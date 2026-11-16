@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Faulty's `unref`, `double-free` and `use-after-free` methods corrupt memory on purpose: an extra buffer unref, a block freed twice, a write to a freed block. [docs/memory-corruption.md](docs/memory-corruption.md) shows what each looks like with and without valgrind, AddressSanitizer and `G_DEBUG=fatal-criticals`.
+- A GitHub Actions workflow builds and tests the plugin in the Docker image on every push, valgrind tests included.
+
 ### Changed
 - Faulty's `gobject` method is now called `flow-error`, which says what it does: it returns `GST_FLOW_ERROR` without posting an error message. `method=gobject` no longer works.
 - Faulty and leaky describe themselves correctly in gst-inspect-1.0: their own descriptions, method and `num-buffers` help texts, and method descriptions. The plugin points at github.com/ashwoods/gst-c-crash.
@@ -13,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The method enums are registered thread-safely, and leaky maps its methods explicitly instead of indexing a table by the enum value.
-- `meson setup` no longer needs gstreamer-check, and only installs the pre-commit hook when there is a `.git` folder.
+- `meson setup` no longer needs gstreamer-check, and no longer tries to copy the pre-commit hook into `.git`, which failed silently; the README says how to install it.
 
 ## [0.1.0] - 2026-11-16
 First release.

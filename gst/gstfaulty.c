@@ -59,6 +59,10 @@ gst_faulty_method_get_type (void)
     {FAULTY_FLOW_ERROR,
         "Return GST_FLOW_ERROR without posting an error", "flow-error"},
     {FAULTY_HANG, "Block the streaming thread forever", "hang"},
+    {FAULTY_UNREF, "Unref the buffer once too often", "unref"},
+    {FAULTY_DOUBLE_FREE, "Free a malloc() block twice", "double-free"},
+    {FAULTY_USE_AFTER_FREE, "Write to a freed malloc() block",
+        "use-after-free"},
     {0, NULL, NULL},
   };
 
@@ -77,45 +81,76 @@ enum
 };
 
 static void
-faulty_signal_sigsegv()
+faulty_signal_sigsegv (GstBuffer * buf G_GNUC_UNUSED)
 {
-  raise(SIGSEGV);
+  raise (SIGSEGV);
 }
 
 static void
-faulty_signal_sigbus()
+faulty_signal_sigbus (GstBuffer * buf G_GNUC_UNUSED)
 {
-  raise(SIGBUS);
+  raise (SIGBUS);
 }
 
 static void
-faulty_signal_sigabrt()
+faulty_signal_sigabrt (GstBuffer * buf G_GNUC_UNUSED)
 {
-  raise(SIGABRT);
+  raise (SIGABRT);
 }
 
 static void
-faulty_custom_method()
+faulty_custom_method (GstBuffer * buf G_GNUC_UNUSED)
 {
-  // a write to a null pointer; volatile so the compiler cannot delete it
-  // mainly meant as a placeholder for adaptation
+  /* a write to a null pointer; volatile so the compiler cannot delete it.
+   * Mainly meant as a placeholder for adaptation */
   *(volatile int *) 0 = 0;
 }
 
+/* a global, volatile pointer, so the compiler can neither drop the
+ * allocations below nor see that the block is already freed */
+volatile int *volatile faulty_block;
+
 static void
-faulty_call_method (FaultyMethod const method)
+faulty_unref (GstBuffer * buf)
+{
+  /* one unref too many: faulty still pushes the buffer downstream after
+   * dropping the reference it was given */
+  gst_buffer_unref (buf);
+}
+
+static void
+faulty_double_free (GstBuffer * buf G_GNUC_UNUSED)
+{
+  faulty_block = malloc (sizeof (int));
+  free ((void *) faulty_block);
+  free ((void *) faulty_block);
+}
+
+static void
+faulty_use_after_free (GstBuffer * buf G_GNUC_UNUSED)
+{
+  faulty_block = malloc (sizeof (int));
+  free ((void *) faulty_block);
+  *faulty_block = 0;
+}
+
+static void
+faulty_call_method (FaultyMethod const method, GstBuffer * buf)
 {
   /* called through a table so the compiler cannot inline the crash away;
    * methods without an entry here fail elsewhere and do nothing */
-  static void (*const pf[]) (void) = {
+  static void (*const pf[]) (GstBuffer * buf) = {
     [FAULTY_SIGSEGV] = faulty_signal_sigsegv,
     [FAULTY_SIGBUS] = faulty_signal_sigbus,
     [FAULTY_SIGABRT] = faulty_signal_sigabrt,
     [FAULTY_CUSTOM_METHOD] = faulty_custom_method,
+    [FAULTY_UNREF] = faulty_unref,
+    [FAULTY_DOUBLE_FREE] = faulty_double_free,
+    [FAULTY_USE_AFTER_FREE] = faulty_use_after_free,
   };
 
   if ((guint) method < G_N_ELEMENTS (pf) && pf[method])
-    pf[method] ();
+    pf[method] (buf);
 }
 
 
@@ -235,8 +270,10 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
       g_usleep (G_USEC_PER_SEC);
   }
   else {
-    faulty_call_method(faulty->method);
-    return GST_FLOW_OK; // code should never reach here
+    /* the signals end here; the memory methods corrupt silently and carry
+     * on, unless a tool such as ASan or valgrind catches them */
+    faulty_call_method (faulty->method, buf);
+    return GST_FLOW_OK;
   }
 
 }

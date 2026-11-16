@@ -46,13 +46,3 @@ configure_file(output : 'config.h', configuration : conf)
 
 subdir('gst')
 subdir('pkgconfig')
-
-# install the style-check hook in a git checkout; tarballs and worktrees
-# have no .git folder
-if import('fs').is_dir('.git/hooks')
-  python3 = import('python').find_installation()
-  run_command(python3, '-c', 'import shutil, sys; shutil.copy(*sys.argv[1:])',
-    meson.project_source_root() / 'hooks/pre-commit.hook',
-    meson.project_source_root() / '.git/hooks/pre-commit',
-    check : true)
-endif

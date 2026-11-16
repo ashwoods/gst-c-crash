@@ -109,6 +109,9 @@ To see the leak:
 | `custom`            | writes to a null pointer, a placeholder for your own crash       | dies of SIGSEGV (exit 139) |
 | `gst`               | posts a `GST_ELEMENT_ERROR` and returns `GST_FLOW_ERROR`          | an error from faulty on the bus: `Cannot do this anymore.` |
 | `flow-error`        | logs `Boom!` with `GST_ERROR_OBJECT` and returns `GST_FLOW_ERROR` without posting an error | only the source's `Internal data stream error`; `Boom!` shows with `GST_DEBUG=faulty:1`, and gst-validate reports `buffer::flow-error-without-error-message` |
+| `unref`             | unrefs the buffer once too often, then pushes it on             | CRITICALs from other elements and an `Internal data stream error`, or a crash elsewhere |
+| `double-free`       | frees a `malloc()` block twice                                   | dies of SIGABRT in `free()` |
+| `use-after-free`    | writes to a freed `malloc()` block                               | a crash later in the allocator, or nothing until a tool catches it |
 | `hang`              | logs `Hanging the streaming thread.` and blocks it forever       | data stops and the pipeline cannot shut down: Ctrl-C does nothing, the process has to be killed. For testing watchdogs |
 | `start`             | `start()` fails, whatever `num-buffers` is                       | `Failed to set pipeline to PAUSED.` (exit 255) |
 | `stop`              | the READY→NULL state change fails, every time                    | the stream runs to EOS, then `Failed to stop.` (exit 1); an app's `set_state(NULL)` returns `FAILURE` |
@@ -116,6 +119,10 @@ To see the leak:
 ```sh
 gst-launch-1.0 videotestsrc ! faulty num-buffers=5 method=sigabrt ! fakesink
 ```
+
+The memory corruption methods rarely crash where the bug is:
+[docs/memory-corruption.md](docs/memory-corruption.md) shows how valgrind,
+AddressSanitizer and `G_DEBUG=fatal-criticals` find them.
 
 On Linux gst-launch-1.0 catches SIGSEGV and waits for a debugger
 (`Spinning. Please run 'gdb gst-launch-1.0 <pid>'`); pass `--no-fault` to let
@@ -137,9 +144,11 @@ Each faulty method runs in a `gst-launch-1.0 --no-fault` subprocess, and the
 test checks its exit signal or error message: a crashing pipeline inside
 pytest would kill the test run. Each leaky method runs in one too, and the test
 counts its leaked buffers with the leaks tracer (`ref`) or its lost blocks with
-macOS `leaks` (`malloc`, skipped elsewhere).
+macOS `leaks` (`malloc`, skipped elsewhere). The memory corruption tests run
+under valgrind where it is installed. GitHub Actions runs
+`docker compose run --rm test`, valgrind included, on every push.
 
-The code follows GStreamer's style. `meson setup` installs a pre-commit hook
-that checks it with GNU indent and refuses to commit without it
-(`brew install gnu-indent`, Debian `indent`). Record changes in
+The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU
+indent (`brew install gnu-indent`, Debian `indent`) and refuses to commit
+without it; install it with `cp hooks/pre-commit.hook .git/hooks/pre-commit`. Record changes in
 [Changelog.md](Changelog.md).
