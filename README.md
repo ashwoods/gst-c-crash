@@ -164,8 +164,9 @@ command and output that catches each mode.
 
 The stream's first segment and stream-start come before any buffer, so
 `drop-segment` and `drop-stream-start` do something only with `num-buffers=0`.
-`backwards` moves nothing then either, as it shifts by the distance from the
-first buffer.
+`backwards` shifts by the distance from the first buffer, so it needs
+`num-buffers=2` or more: at 0 nothing moves, at 1 the second buffer repeats
+the first one's timestamp.
 
 ## Contributing
 

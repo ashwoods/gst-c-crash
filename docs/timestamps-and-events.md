@@ -80,8 +80,9 @@ gst-launch-1.0 -m videotestsrc num-buffers=20 ! mangler mode=backwards num-buffe
 … (element): imperfect-timestamp, delta=(gint64)-166666666, prev-timestamp=(guint64)133333333, …, cur-timestamp=(guint64)0, …
 ```
 
-With `num-buffers=0` nothing moves: the shift is the distance from the first
-buffer, which is zero.
+The shift is the distance from the first buffer, so `backwards` needs
+`num-buffers=2` or more: with 0 nothing moves, with 1 the second buffer
+repeats the first one's timestamp instead of going below it.
 
 `gap` moves every timestamp 1 s ahead, without a DISCONT flag to say the jump
 is on purpose. identity sees one jump of 1 s, and later buffers keep the
