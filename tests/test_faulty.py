@@ -6,6 +6,7 @@ inside pytest itself.
 import os
 import signal
 import subprocess
+import sys
 
 import pytest
 
@@ -57,6 +58,20 @@ def test_error(method, text):
     p = launch(method)
     assert p.returncode != 0, p.stdout
     assert text in p.stdout
+
+
+def test_num_buffers_restarts_with_each_play():
+    # one element, played twice: the countdown starts over on the second play
+    helper = os.path.join(os.path.dirname(__file__), "faulty_restart.py")
+    p = subprocess.run(
+        [sys.executable, helper, "gst", "5"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        timeout=TIMEOUT,
+    )
+    assert p.returncode == 0, p.stdout
+    assert p.stdout.split()[-2:] == ["error:5", "error:5"], p.stdout
 
 
 def test_hang():

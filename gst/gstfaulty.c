@@ -231,10 +231,13 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
 
 }
 
+/* count down from num-buffers again each time the element starts */
 static gboolean
 gst_faulty_start (GstBaseTransform * trans)
 {
   GstFaulty *faulty = GST_FAULTY(trans);
+
+  faulty->num_buffers_left = faulty->num_buffers;
   if (faulty->method == FAULTY_START_ERROR) {
     return FALSE;
   } else {
