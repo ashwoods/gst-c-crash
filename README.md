@@ -113,6 +113,9 @@ To see the leak:
 | `double-free`       | frees a `malloc()` block twice                                   | dies of SIGABRT in `free()` |
 | `use-after-free`    | writes to a freed `malloc()` block                               | a crash later in the allocator, or nothing until a tool catches it |
 | `hang`              | logs `Hanging the streaming thread.` and blocks it forever       | data stops and the pipeline cannot shut down: Ctrl-C does nothing, the process has to be killed. For testing watchdogs |
+| `stall`             | sleeps in the streaming thread for `stall-time` ms (default 2000), once, then passes buffers again | a pause: no data for `stall-time`, then the stream goes on to EOS. `Stalling the streaming thread for N ms.` shows with `GST_DEBUG=faulty:1`; the `watchdog` element reports `Watchdog triggered` |
+| `spin`              | busy-loops in the streaming thread for `stall-time` ms, once, then passes buffers again | the same pause, but with a CPU core at 100%: user time equals wall time. `Spinning the streaming thread for N ms.` shows with `GST_DEBUG=faulty:1` |
+| `deadlock`          | the streaming thread and a helper thread, `faulty-deadlock`, take two locks in opposite orders. Logs `Deadlocking the streaming thread.` | data stops for good, with no CPU use, and so does the app's `g_object_get()` on faulty: Ctrl-C does nothing, the process has to be killed. Needs a debugger to see why |
 | `start`             | `start()` fails, whatever `num-buffers` is                       | `Failed to set pipeline to PAUSED.` (exit 255) |
 | `stop`              | the READY→NULL state change fails, every time                    | the stream runs to EOS, then `Failed to stop.` (exit 1); an app's `set_state(NULL)` returns `FAILURE` |
 
@@ -123,6 +126,11 @@ gst-launch-1.0 videotestsrc ! faulty num-buffers=5 method=sigabrt ! fakesink
 The memory corruption methods rarely crash where the bug is:
 [docs/memory-corruption.md](docs/memory-corruption.md) shows how valgrind,
 AddressSanitizer and `G_DEBUG=fatal-criticals` find them.
+
+The blocking methods (`stall`, `spin`, `deadlock`) never crash:
+[docs/blocking.md](docs/blocking.md) shows how the watchdog element, the
+latency and rusage tracers, `top` and a debugger find each. `stall-time` sets
+how long `stall` and `spin` block, in milliseconds.
 
 On Linux gst-launch-1.0 catches SIGSEGV and waits for a debugger
 (`Spinning. Please run 'gdb gst-launch-1.0 <pid>'`); pass `--no-fault` to let
@@ -145,7 +153,9 @@ test checks its exit signal or error message: a crashing pipeline inside
 pytest would kill the test run. Each leaky method runs in one too, and the test
 counts its leaked buffers with the leaks tracer (`ref`) or its lost blocks with
 macOS `leaks` (`malloc`, skipped elsewhere). The memory corruption tests run
-under valgrind where it is installed. GitHub Actions runs
+under valgrind where it is installed. The blocking tests check that `stall`
+triggers a watchdog and recovers, that `spin` burns CPU time and that
+`deadlock` blocks the pipeline and a property read. GitHub Actions runs
 `docker compose run --rm test`, valgrind included, on every push.
 
 The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU

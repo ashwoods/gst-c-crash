@@ -26,6 +26,7 @@ RUN set -ex \
     && apt-get install -yq --no-install-recommends --no-upgrade \
         build-essential \
         debhelper \
+        gdb \
         git \
         libgstreamer1.0-dev \
         meson \
