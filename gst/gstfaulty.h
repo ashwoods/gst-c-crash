@@ -44,6 +44,9 @@ typedef enum
   FAULTY_UNREF,
   FAULTY_DOUBLE_FREE,
   FAULTY_USE_AFTER_FREE,
+  FAULTY_STALL,
+  FAULTY_SPIN,
+  FAULTY_DEADLOCK,
 } FaultyMethod;
 
 /**
@@ -59,6 +62,12 @@ struct _GstFaulty
   gint num_buffers;
   gint num_buffers_left;
   FaultyMethod method;
+  guint stall_time;
+
+  /* stall and spin block once per start() */
+  gboolean blocked;
+  /* set by the deadlock thread once it holds the object lock */
+  gint deadlock_locked;
 };
 
 G_END_DECLS
