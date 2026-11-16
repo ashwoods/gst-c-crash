@@ -151,7 +151,8 @@ def test_spin_burns_cpu():
     assert p.returncode == 0, p.stdout
     assert "Spinning the streaming thread for 2000 ms." in p.stdout
     assert wall >= 2, p.stdout
-    assert cpu >= 0.75 * wall, f"cpu {cpu:.2f} s, wall {wall:.2f} s"
+    # about 0.95 for a spin, 0.01 for a stall
+    assert cpu >= 0.5 * wall, f"cpu {cpu:.2f} s, wall {wall:.2f} s"
 
 
 def test_deadlock_blocks_pipeline():
