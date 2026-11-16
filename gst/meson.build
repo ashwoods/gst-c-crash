@@ -1,6 +1,7 @@
 crash_sources = [
   'gstleaky.c',
   'gstfaulty.c',
+  'gstmangler.c',
   'gstcrash.c'
 ]
 

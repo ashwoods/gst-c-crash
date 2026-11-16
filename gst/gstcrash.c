@@ -23,6 +23,7 @@
 
 #include "gstleaky.h"
 #include "gstfaulty.h"
+#include "gstmangler.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
@@ -31,6 +32,10 @@ plugin_init (GstPlugin * plugin)
     return FALSE;
 
   if(!gst_element_register (plugin, "faulty", GST_RANK_NONE, GST_TYPE_FAULTY))
+    return FALSE;
+
+  if(!gst_element_register (plugin, "mangler", GST_RANK_NONE,
+          GST_TYPE_MANGLER))
     return FALSE;
 
   return TRUE;
