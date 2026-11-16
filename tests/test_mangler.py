@@ -94,7 +94,9 @@ def test_drop_eos_hangs_and_leaves_mp4_without_moov(tmp_path):
     # the moov atom is written on EOS: without it the file cannot be played
     out = tmp_path / "out.mov"
     with pytest.raises(subprocess.TimeoutExpired):
-        launch("drop-eos", f"qtmux ! filesink location={out}",
+        # unbuffered, so what qtmux wrote is on disk when the timeout kills it
+        launch("drop-eos",
+               f"qtmux ! filesink buffer-mode=unbuffered location={out}",
                upstream="jpegenc", timeout=3)
     data = out.read_bytes()
     assert b"mdat" in data

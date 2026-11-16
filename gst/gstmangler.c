@@ -55,7 +55,7 @@ gst_mangler_mode_get_type (void)
     {MANGLER_NO_PTS, "Clear PTS and DTS: qtmux fails with 'Buffer has no PTS'",
         "no-pts"},
     {MANGLER_BACKWARDS, "Start the timestamps over from the first buffer's: "
-          "muxers see decreasing DTS", "backwards"},
+          "muxers see decreasing DTS (needs num-buffers >= 2)", "backwards"},
     {MANGLER_GAP, "Jump the timestamps 1 s ahead without a DISCONT flag: "
           "synced sinks wait a second", "gap"},
     {MANGLER_BAD_DURATION, "Double each duration: buffers overlap the next",
@@ -183,6 +183,8 @@ mangler_segment_ahead (GstBaseTransform * trans, GstClockTime pts)
   GstEvent *event, *old;
 
   gst_segment_copy_into (&trans->segment, &segment);
+  /* the offset is folded into the new base */
+  segment.offset = 0;
   segment.base = gst_segment_to_running_time (&trans->segment,
       GST_FORMAT_TIME, start);
   segment.time = gst_segment_to_stream_time (&trans->segment,
@@ -199,13 +201,33 @@ mangler_segment_ahead (GstBaseTransform * trans, GstClockTime pts)
   return event;
 }
 
+/* move a timestamp by diff, but not below 0 */
+static GstClockTime
+mangler_shift_time (GstClockTime time, GstClockTimeDiff diff)
+{
+  if (!GST_CLOCK_TIME_IS_VALID (time))
+    return time;
+  if (diff < 0 && time < (GstClockTime) - diff)
+    return 0;
+  return time + diff;
+}
+
 static void
 mangler_shift (GstBuffer * buf, GstClockTimeDiff diff)
 {
-  if (GST_BUFFER_PTS_IS_VALID (buf))
-    GST_BUFFER_PTS (buf) += diff;
-  if (GST_BUFFER_DTS_IS_VALID (buf))
-    GST_BUFFER_DTS (buf) += diff;
+  GST_BUFFER_PTS (buf) = mangler_shift_time (GST_BUFFER_PTS (buf), diff);
+  GST_BUFFER_DTS (buf) = mangler_shift_time (GST_BUFFER_DTS (buf), diff);
+}
+
+/* before-segment works on time segments and needs the new start inside */
+static gboolean
+mangler_can_move_segment (GstBaseTransform * trans, GstClockTime pts)
+{
+  GstSegment *segment = &trans->segment;
+
+  return segment->format == GST_FORMAT_TIME && segment->rate > 0 &&
+      (!GST_CLOCK_TIME_IS_VALID (segment->stop) ||
+      pts + MANGLER_OFFSET <= segment->stop);
 }
 
 static GstFlowReturn
@@ -223,6 +245,11 @@ gst_mangler_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
     mangler->num_buffers_left--;
     return GST_FLOW_OK;
   }
+  /* backwards and before-segment start from the first timestamped buffer */
+  if (!mangler->triggered && !GST_CLOCK_TIME_IS_VALID (pts) &&
+      (mangler->mode == MANGLER_BACKWARDS ||
+          mangler->mode == MANGLER_BEFORE_SEGMENT))
+    return GST_FLOW_OK;
   first = !mangler->triggered;
   mangler->triggered = TRUE;
 
@@ -234,7 +261,9 @@ gst_mangler_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
       GST_BUFFER_DTS (buf) = GST_CLOCK_TIME_NONE;
       break;
     case MANGLER_BACKWARDS:
-      if (first && GST_CLOCK_TIME_IS_VALID (pts)) {
+      if (first) {
+        /* to the first buffer's: below num-buffers=2 that is not earlier
+         * than the buffer before */
         mangler->shift = pts - mangler->first_pts;
         GST_ERROR_OBJECT (mangler, "Moving timestamps back by %"
             GST_TIME_FORMAT ".", GST_TIME_ARGS (mangler->shift));
@@ -254,7 +283,10 @@ gst_mangler_transform_ip (GstBaseTransform * trans, GstBuffer * buf)
         GST_BUFFER_DURATION (buf) *= 2;
       break;
     case MANGLER_BEFORE_SEGMENT:
-      if (first && GST_CLOCK_TIME_IS_VALID (pts)) {
+      if (first && !mangler_can_move_segment (trans, pts)) {
+        GST_WARNING_OBJECT (mangler, "Cannot start a segment ahead of %"
+            GST_SEGMENT_FORMAT ".", &trans->segment);
+      } else if (first) {
         GST_ERROR_OBJECT (mangler, "Starting a segment %" GST_TIME_FORMAT
             " ahead of the buffers.", GST_TIME_ARGS (MANGLER_OFFSET));
         gst_pad_push_event (GST_BASE_TRANSFORM_SRC_PAD (trans),
@@ -288,25 +320,25 @@ static gboolean
 gst_mangler_sink_event (GstBaseTransform * trans, GstEvent * event)
 {
   GstMangler *mangler = GST_MANGLER (trans);
-  ManglerMode drop;
+  gboolean drop;
 
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_EOS:
-      drop = MANGLER_DROP_EOS;
+      drop = mangler->mode == MANGLER_DROP_EOS;
       break;
     case GST_EVENT_SEGMENT:
-      drop = MANGLER_DROP_SEGMENT;
+      drop = mangler->mode == MANGLER_DROP_SEGMENT;
       break;
     case GST_EVENT_STREAM_START:
-      drop = MANGLER_DROP_STREAM_START;
+      drop = mangler->mode == MANGLER_DROP_STREAM_START;
       break;
     default:
-      drop = -1;
+      drop = FALSE;
       break;
   }
   /* events after num-buffers buffers; stream-start and the first segment
    * come before any buffer, so only num-buffers=0 drops those */
-  if (mangler->mode == drop && mangler->num_buffers_left == 0) {
+  if (drop && mangler->num_buffers_left == 0) {
     GST_ERROR_OBJECT (mangler, "Dropping the %s event.",
         GST_EVENT_TYPE_NAME (event));
     gst_event_unref (event);
