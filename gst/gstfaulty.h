@@ -26,11 +26,6 @@
 
 G_BEGIN_DECLS
 
-// /* Standard boilerplate stuff */
-// typedef struct _GstFaulty GstFaulty;
-// typedef struct _GstFaultyClass GstFaultyClass;
-
-/* #defines don't like whitespacey bits */
 #define GST_TYPE_FAULTY (gst_faulty_get_type())
 G_DECLARE_FINAL_TYPE (GstFaulty, gst_faulty, GST, FAULTY,
     GstBaseTransform)
@@ -44,7 +39,7 @@ typedef enum
   FAULTY_STOP_ERROR,
   FAULTY_CUSTOM_METHOD,
   FAULTY_GST_ERROR,
-  FAULTY_GOBJECT_ERROR,
+  FAULTY_FLOW_ERROR,
   FAULTY_HANG,
 } FaultyMethod;
 
@@ -58,20 +53,10 @@ struct _GstFaulty
   GstBaseTransform parent;
 
   /* properties */
-  gboolean silent;
   gint num_buffers;
   gint num_buffers_left;
   FaultyMethod method;
 };
-
-struct _GstFaultyClass {
-  GstBaseTransformClass trans_class;
-};
-
-
-
-GType gst_faulty_get_type (void);
-
 
 G_END_DECLS
 #endif /* __GST_FAULTY_H__ */

@@ -88,7 +88,7 @@ To see the leak:
 
 - `malloc`, on Linux (for example in `docker compose run --rm shell`), with
   valgrind or AddressSanitizer; both report 36 bytes in 9 blocks from
-  `leaky_malloc_leak (gstleaky.c:68)`. LeakSanitizer and valgrind do not run on
+  `leaky_malloc_leak (gstleaky.c:76)`. LeakSanitizer and valgrind do not run on
   macOS arm64.
 
   ```sh
@@ -108,7 +108,7 @@ To see the leak:
 | `sigabrt`           | `raise(SIGABRT)`                                                 | dies of SIGABRT (exit 134) |
 | `custom`            | writes to a null pointer, a placeholder for your own crash       | dies of SIGSEGV (exit 139) |
 | `gst`               | posts a `GST_ELEMENT_ERROR` and returns `GST_FLOW_ERROR`          | an error from faulty on the bus: `Cannot do this anymore.` |
-| `gobject`           | logs `Boom!` with `GST_ERROR_OBJECT` and returns `GST_FLOW_ERROR` | only the source's `Internal data stream error`; `Boom!` shows with `GST_DEBUG=faulty:1` |
+| `flow-error`        | logs `Boom!` with `GST_ERROR_OBJECT` and returns `GST_FLOW_ERROR` without posting an error | only the source's `Internal data stream error`; `Boom!` shows with `GST_DEBUG=faulty:1`, and gst-validate reports `buffer::flow-error-without-error-message` |
 | `hang`              | logs `Hanging the streaming thread.` and blocks it forever       | data stops and the pipeline cannot shut down: Ctrl-C does nothing, the process has to be killed. For testing watchdogs |
 | `start`             | `start()` fails, whatever `num-buffers` is                       | `Failed to set pipeline to PAUSED.` (exit 255) |
 | `stop`              | the READY→NULL state change fails, every time                    | the stream runs to EOS, then `Failed to stop.` (exit 1); an app's `set_state(NULL)` returns `FAILURE` |

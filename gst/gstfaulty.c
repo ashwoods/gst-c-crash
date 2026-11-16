@@ -19,9 +19,17 @@
 /**
  * SECTION:element-faulty
  * @title: faulty
- * @short_description: enforce limitations on the data format
+ * @short_description: crash or fail a pipeline on purpose
  *
+ * faulty passes buffers through untouched until #GstFaulty:num-buffers
+ * buffers have gone by, then fails the way #GstFaulty:method says: it raises
+ * a signal, fails a state change, returns a flow error or blocks the
+ * streaming thread.
  *
+ * ## Example launch line
+ * |[
+ * gst-launch-1.0 videotestsrc ! faulty num-buffers=5 method=sigabrt ! fakesink
+ * ]|
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,23 +47,24 @@
 static GType
 gst_faulty_method_get_type (void)
 {
-  static GType faulty_method_type = 0;
+  static gsize faulty_method_type = 0;
   static const GEnumValue faulty_method[] = {
-    {FAULTY_SIGSEGV, "SIGSEGV", "sigsegv"},
-    {FAULTY_SIGBUS, "SIGBUS", "sigbus"},
-    {FAULTY_SIGABRT, "SIGABRT", "sigabrt"},
-    {FAULTY_START_ERROR, "START ERROR", "start"},
-    {FAULTY_STOP_ERROR, "STOP ERROR", "stop"},
-    {FAULTY_CUSTOM_METHOD, "CUSTOM METHOD", "custom"},
-    {FAULTY_GST_ERROR, "GST ERROR", "gst"},
-    {FAULTY_GOBJECT_ERROR, "GOBJECT ERROR", "gobject"},
-    {FAULTY_HANG, "HANG", "hang"},
+    {FAULTY_SIGSEGV, "Raise SIGSEGV", "sigsegv"},
+    {FAULTY_SIGBUS, "Raise SIGBUS", "sigbus"},
+    {FAULTY_SIGABRT, "Raise SIGABRT", "sigabrt"},
+    {FAULTY_START_ERROR, "Fail start()", "start"},
+    {FAULTY_STOP_ERROR, "Fail the READY to NULL state change", "stop"},
+    {FAULTY_CUSTOM_METHOD, "Write to a null pointer", "custom"},
+    {FAULTY_GST_ERROR, "Post an element error", "gst"},
+    {FAULTY_FLOW_ERROR,
+        "Return GST_FLOW_ERROR without posting an error", "flow-error"},
+    {FAULTY_HANG, "Block the streaming thread forever", "hang"},
     {0, NULL, NULL},
   };
 
-  if (!faulty_method_type) {
-    faulty_method_type =
-        g_enum_register_static ("FaultyMethod", faulty_method);
+  if (g_once_init_enter (&faulty_method_type)) {
+    GType type = g_enum_register_static ("FaultyMethod", faulty_method);
+    g_once_init_leave (&faulty_method_type, type);
   }
   return faulty_method_type;
 }
@@ -160,7 +169,7 @@ gst_faulty_class_init (GstFaultyClass * klass)
   gst_element_class_set_static_metadata (gstelement_class,
       "Faulty",
       "Generic",
-      "Leak some memory",
+      "Crash or fail a pipeline on purpose after num-buffers buffers",
       "Ashley Camba Garrido <ashwoods@gmail.com>");
   gst_element_class_add_static_pad_template (gstelement_class, &srctemplate);
   gst_element_class_add_static_pad_template (gstelement_class, &sinktemplate);
@@ -170,14 +179,14 @@ gst_faulty_class_init (GstFaultyClass * klass)
   trans_class->start = GST_DEBUG_FUNCPTR (gst_faulty_start);
 
   g_object_class_install_property (gobject_class, PROP_METHOD,
-      g_param_spec_enum ("method", "Error Method",
-          "Select the error method",
+      g_param_spec_enum ("method", "Method",
+          "How to fail once num-buffers buffers have passed",
           GST_TYPE_FAULTY_METHOD,
-          FAULTY_SIGSEGV, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          DEFAULT_METHOD, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_NUM_BUFFERS,
-      g_param_spec_int ("num-buffers", "Numm buffers",
-          "Number of buffers to output before raising an error",
+      g_param_spec_int ("num-buffers", "Num buffers",
+          "Number of buffers to pass through before failing",
           0, G_MAXINT, DEFAULT_NUM_BUFFERS, G_PARAM_READWRITE |
           G_PARAM_STATIC_STRINGS));
 
@@ -201,7 +210,8 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
 {
   GstFaulty *faulty = GST_FAULTY (base);
   if (faulty->num_buffers_left > 0) {
-    GST_INFO ("Calling faulty in %d frames.", faulty->num_buffers_left);
+    GST_LOG_OBJECT (faulty, "Failing in %d buffers.",
+        faulty->num_buffers_left);
     faulty->num_buffers_left--;
     return GST_FLOW_OK;
   }
@@ -213,7 +223,7 @@ gst_faulty_transform_ip (GstBaseTransform * base, GstBuffer * buf)
                       (NULL));
     return GST_FLOW_ERROR;
   }
-  else if (faulty->method == FAULTY_GOBJECT_ERROR) {
+  else if (faulty->method == FAULTY_FLOW_ERROR) {
     GST_ERROR_OBJECT(faulty, "Boom!");
     return GST_FLOW_ERROR;
   }

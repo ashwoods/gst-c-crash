@@ -49,7 +49,7 @@ def test_signal(method, sig):
         ("start", "Failed to set pipeline to PAUSED."),
         ("gst", "ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
                 " Cannot do this anymore."),
-        ("gobject", "Boom!"),
+        ("flow-error", "Boom!"),
         ("stop", "ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
                  " Failed to stop."),
     ],

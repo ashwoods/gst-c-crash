@@ -26,11 +26,6 @@
 
 G_BEGIN_DECLS
 
-// /* Standard boilerplate stuff */
-// typedef struct _GstLeaky GstLeaky;
-// typedef struct _GstLeakyClass GstLeakyClass;
-
-/* #defines don't like whitespacey bits */
 #define GST_TYPE_LEAKY (gst_leaky_get_type())
 G_DECLARE_FINAL_TYPE (GstLeaky, gst_leaky, GST, LEAKY,
     GstBaseTransform)
@@ -51,20 +46,10 @@ struct _GstLeaky
   GstBaseTransform parent;
 
   /* properties */
-  gboolean silent;
   gint num_buffers;
   gint num_buffers_left;
   LeakyMethod method;
 };
-
-struct _GstLeakyClass {
-  GstBaseTransformClass trans_class;
-};
-
-
-
-GType gst_leaky_get_type (void);
-
 
 G_END_DECLS
 #endif /* __GST_LEAKY_H__ */

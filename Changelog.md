@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Faulty's `gobject` method is now called `flow-error`, which says what it does: it returns `GST_FLOW_ERROR` without posting an error message. `method=gobject` no longer works.
+- Faulty and leaky describe themselves correctly in gst-inspect-1.0: their own descriptions, method and `num-buffers` help texts, and method descriptions. The plugin points at github.com/ashwoods/gst-c-crash.
+- Per-buffer countdown messages log at LOG level, on the element.
+
+### Fixed
+- The method enums are registered thread-safely, and leaky maps its methods explicitly instead of indexing a table by the enum value.
+- `meson setup` no longer needs gstreamer-check, and only installs the pre-commit hook when there is a `.git` folder.
+
 ## [0.1.0] - 2026-11-16
 First release.
 

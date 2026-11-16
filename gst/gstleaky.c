@@ -19,9 +19,16 @@
 /**
  * SECTION:element-leaky
  * @title: leaky
- * @short_description: enforce limitations on the data format
+ * @short_description: leak memory on purpose
  *
+ * leaky passes buffers through untouched until #GstLeaky:num-buffers
+ * buffers have gone by, then leaks on every buffer after that, the way
+ * #GstLeaky:method says.
  *
+ * ## Example launch line
+ * |[
+ * gst-launch-1.0 videotestsrc num-buffers=110 ! leaky method=ref ! fakesink
+ * ]|
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,16 +46,16 @@
 static GType
 gst_leaky_method_get_type (void)
 {
-  static GType leaky_method_type = 0;
+  static gsize leaky_method_type = 0;
   static const GEnumValue leaky_method[] = {
-    {LEAKY_MALLOC, "Malloc", "malloc"},
-    {LEAKY_REF, "Reference", "ref"},
+    {LEAKY_MALLOC, "Leak a malloc() block", "malloc"},
+    {LEAKY_REF, "Leak a reference on the buffer", "ref"},
     {0, NULL, NULL},
   };
 
-  if (!leaky_method_type) {
-    leaky_method_type =
-        g_enum_register_static ("LeakyMethod", leaky_method);
+  if (g_once_init_enter (&leaky_method_type)) {
+    GType type = g_enum_register_static ("LeakyMethod", leaky_method);
+    g_once_init_leave (&leaky_method_type, type);
   }
   return leaky_method_type;
 }
@@ -60,42 +67,33 @@ enum
   PROP_METHOD,
 };
 
-// define global to avoid optimizer optiizaing it away
+/* global, so the optimizer cannot drop the allocation */
 int *malloc_ptr;
-void static
-leaky_malloc_leak(GstBaseTransform * base, GstBuffer * buf)
+
+static void
+leaky_malloc_leak (GstBuffer * buf G_GNUC_UNUSED)
 {
-  malloc_ptr = (int *) malloc(sizeof(int));
-  // no free(ptr);  
+  malloc_ptr = (int *) malloc (sizeof (int));
+  /* no free (malloc_ptr) */
 }
 
-void static
-leaky_ref_leak(GstBaseTransform * base, GstBuffer * buf)
+static void
+leaky_ref_leak (GstBuffer * buf)
 {
-  gst_buffer_ref(buf);
-  // no gst_buffer_unref
+  gst_buffer_ref (buf);
+  /* no gst_buffer_unref (buf) */
 }
 
-// void static
-// leaky_hw(GstBaseTransform * base, GstBuffer * buf)
-// {
-// }
-
-// void static
-// leaky_map(GstBaseTransform * base, GstBuffer * buf)
-// {
-// }
-
-void static 
-leaky_call_method(u_int8_t const index, GstBaseTransform * base, GstBuffer * buf)
+static void
+leaky_call_method (LeakyMethod const method, GstBuffer * buf)
 {
-  static void (*pf[])(GstBaseTransform * base, GstBuffer * buf) = {
-    leaky_malloc_leak,
-    leaky_ref_leak};
-  if (index < sizeof(pf) / sizeof(*pf))
-    {
-      pf[index](base, buf);
-    }
+  static void (*const pf[]) (GstBuffer * buf) = {
+    [LEAKY_MALLOC] = leaky_malloc_leak,
+    [LEAKY_REF] = leaky_ref_leak,
+  };
+
+  if ((guint) method < G_N_ELEMENTS (pf) && pf[method])
+    pf[method] (buf);
 }
 
 
@@ -147,7 +145,7 @@ gst_leaky_class_init (GstLeakyClass * klass)
   gst_element_class_set_static_metadata (gstelement_class,
       "Leaky",
       "Generic",
-      "Leak some memory",
+      "Leak memory on purpose after num-buffers buffers",
       "Ashley Camba Garrido <ashwoods@gmail.com>");
   gst_element_class_add_static_pad_template (gstelement_class, &srctemplate);
   gst_element_class_add_static_pad_template (gstelement_class, &sinktemplate);
@@ -157,14 +155,14 @@ gst_leaky_class_init (GstLeakyClass * klass)
   trans_class->start = GST_DEBUG_FUNCPTR (gst_leaky_start);
 
   g_object_class_install_property (gobject_class, PROP_METHOD,
-      g_param_spec_enum ("method", "Error Method",
-          "Select the error method",
+      g_param_spec_enum ("method", "Method",
+          "How to leak once num-buffers buffers have passed",
           GST_TYPE_LEAKY_METHOD,
-          LEAKY_MALLOC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+          DEFAULT_METHOD, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_NUM_BUFFERS,
-      g_param_spec_int ("num-buffers", "Numm buffers",
-          "Number of buffers to output before raising an error",
+      g_param_spec_int ("num-buffers", "Num buffers",
+          "Number of buffers to pass through before leaking",
           0, G_MAXINT, DEFAULT_NUM_BUFFERS, G_PARAM_READWRITE |
           G_PARAM_STATIC_STRINGS));
 
@@ -199,12 +197,12 @@ gst_leaky_transform_ip (GstBaseTransform * base, GstBuffer * buf)
 {
   GstLeaky *leaky = GST_LEAKY (base);
   if (leaky->num_buffers_left > 0) {
-    GST_INFO ("Calling something %d", leaky->num_buffers_left);
+    GST_LOG_OBJECT (leaky, "Leaking in %d buffers.", leaky->num_buffers_left);
     leaky->num_buffers_left--;
     return GST_FLOW_OK;
   }
-  leaky_call_method(leaky->method, base,  buf);
-  return GST_FLOW_OK; // this shouldn't happen 
+  leaky_call_method (leaky->method, buf);
+  return GST_FLOW_OK;
 }
 
 

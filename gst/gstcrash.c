@@ -36,11 +36,11 @@ plugin_init (GstPlugin * plugin)
   return TRUE;
 }
 
-/* gstreamer looks for this structure to register realsensesrc */
+/* gstreamer looks for this structure to register the crash plugin */
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     crash,
-    "Gstcrash plugin",
+    "Elements that leak, crash and fail on purpose",
     plugin_init, 
-    VERSION, LICENSE, PACKAGE_DESCRIPTION, PACKAGE_ORIGIN
+    VERSION, LICENSE, GST_PACKAGE_NAME, PACKAGE_ORIGIN
 )
