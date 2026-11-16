@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faulty's `gobject` method is now called `flow-error`, which says what it does: it returns `GST_FLOW_ERROR` without posting an error message. `method=gobject` no longer works.
 - Faulty and leaky describe themselves correctly in gst-inspect-1.0: their own descriptions, method and `num-buffers` help texts, and method descriptions. The plugin points at github.com/ashwoods/gst-c-crash.
 - Per-buffer countdown messages log at LOG level, on the element.
-- Faulty's property getters and setters now take the object lock, as GStreamer elements do. A property access from another thread waits while the streaming thread holds the lock, which the `deadlock` method relies on.
+- Faulty's property getters and setters now take the object lock, as GStreamer elements do. The `deadlock` method relies on it: its helper thread keeps the lock, so an app's property reads freeze too.
 
 ### Fixed
 - The method enums are registered thread-safely, and leaky maps its methods explicitly instead of indexing a table by the enum value.

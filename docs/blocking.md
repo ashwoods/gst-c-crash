@@ -123,30 +123,19 @@ spin ends. To see it while it happens, look at the process:
   `videotestsrc0:src`, the source's streaming thread, which runs faulty. A
   stalled pipeline shows 0.0 in every row.
 
-- **macOS**, `top` has no threads, only the process, and `ps -M` lists the
-  threads without names:
+- **macOS**, `top` shows only the process, and `ps -M -p <pid>` lists its
+  threads without names (the busy one at 98.7%, nearly all `UTIME`):
 
   ```sh
   top -l 3 -s 1 -pid <pid> -stats pid,command,cpu,th,state | tail -2
-  ps -M -p <pid>
   ```
 
   ```
   PID    COMMAND        %CPU #TH STATE
   81409  gst-launch-1.0 98.4 8/1 running
-
-  USER               PID   TT   %CPU STAT PRI     STIME     UTIME COMMAND
-  …                81409   ??    0.1 S    20T   0:00.02   0:00.03 gst-launch-1.0 …
-                   81409         0.0 S    20T   0:00.00   0:00.00
-                   …
-                   81409        98.7 R    20T   0:00.03   0:05.62
-                   81409         0.0 S    20T   0:00.00   0:00.00
   ```
 
-  (`ps -M -p <pid>`, with the user name and the command line cut.) The busy
-  thread is the one at 98.7% in the running state, and its time is nearly all
-  user time (`UTIME`), as it is for any loop that reads the clock in user
-  space. A debugger names it (`lldb -p <pid> --batch -o "bt all"`):
+  A debugger names the busy thread (`lldb -p <pid> --batch -o "bt all"`):
 
   ```
     thread #7, name = 'videotestsrc0:src'
@@ -262,13 +251,13 @@ wants:
 Two threads each waiting for a lock that the other one's code path took: that
 is the inversion. Look for such a pair when a pipeline hangs with no CPU use.
 (The `faulty-deadlock` frames go straight from `faulty_deadlock_thread` to
-the pthread ones, with no `g_rec_mutex_lock` between: the compiler made it a
-tail call.)
+the pthread ones, with no `g_rec_mutex_lock` between: GLib's
+`g_rec_mutex_lock` ends in a tail call to `pthread_mutex_lock`.)
 
 Everything else that needs A or B blocks too, and the application's own
 threads are among them. `get_property` and `set_property` take the object lock,
 so an app reading a property from its main thread freezes:
-`tests/faulty_deadlock.py` does, with `g_object_get(faulty, "num-buffers")`.
+`tests/faulty_deadlock.py` does, with `faulty.get_property("num-buffers")`.
 Attached with lldb (macOS):
 
 ```
@@ -283,19 +272,9 @@ Attached with lldb (macOS):
     …
 ```
 
-Without a debugger, Python's `faulthandler` shows where an app is stuck at
-the Python level (the test uses `faulthandler.dump_traceback_later(3, exit=True)`):
-
-```
-Timeout (0:00:03)!
-Thread … (most recent call first):
-  File "…/tests/faulty_deadlock.py", line 17 in read_property
-  File "…/tests/faulty_deadlock.py", line 30 in main
-  File "…/tests/faulty_deadlock.py", line 35 in <module>
-```
-
-Python's own stack ends in the property read and cannot say that it waits for
-a mutex, nor who holds it: that takes the native backtrace above. Setting the
+Without a debugger, Python's `faulthandler.dump_traceback_later()` shows the
+app stuck in the property read, but not that it waits for a mutex, nor who
+holds it: that takes the native backtrace above. Setting the
 pipeline's state to NULL hangs as well (`set_state(Gst.State.NULL)` from
 Python never returns).
 
