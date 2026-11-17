@@ -45,4 +45,5 @@ conf.set_quoted('PACKAGE_ORIGIN', get_option('package-origin'))
 configure_file(output : 'config.h', configuration : conf)
 
 subdir('gst')
+subdir('examples/c')
 subdir('pkgconfig')
