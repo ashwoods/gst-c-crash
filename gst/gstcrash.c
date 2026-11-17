@@ -27,14 +27,14 @@
 
 static gboolean
 plugin_init (GstPlugin * plugin)
-{ 
-  if(!gst_element_register (plugin, "leaky", GST_RANK_NONE, GST_TYPE_LEAKY))
+{
+  if (!gst_element_register (plugin, "leaky", GST_RANK_NONE, GST_TYPE_LEAKY))
     return FALSE;
 
-  if(!gst_element_register (plugin, "faulty", GST_RANK_NONE, GST_TYPE_FAULTY))
+  if (!gst_element_register (plugin, "faulty", GST_RANK_NONE, GST_TYPE_FAULTY))
     return FALSE;
 
-  if(!gst_element_register (plugin, "mangler", GST_RANK_NONE,
+  if (!gst_element_register (plugin, "mangler", GST_RANK_NONE,
           GST_TYPE_MANGLER))
     return FALSE;
 
@@ -46,6 +46,4 @@ GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     crash,
     "Elements that leak, crash and fail on purpose",
-    plugin_init, 
-    VERSION, LICENSE, GST_PACKAGE_NAME, PACKAGE_ORIGIN
-)
+    plugin_init, VERSION, LICENSE, GST_PACKAGE_NAME, PACKAGE_ORIGIN)
