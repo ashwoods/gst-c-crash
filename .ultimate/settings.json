@@ -15,7 +15,7 @@
       "ninja -C build",
       {
         "command": "GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest -q -p no:cacheprovider tests",
-        "timeout": 180
+        "timeout": 300
       }
     ]
   }

@@ -10,12 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorials on [handling errors](docs/errors.md) in an application, [crashes](docs/crashes.md) and [leaks](docs/leaks.md), covering faulty's signal, `gst`, `flow-error`, `start`, `stop` and `hang` methods and both leaky methods.
 - `examples/` has three small applications, each in Python, C and Rust: `run-pipeline` (watches the bus, checks state changes, retries errors, detects stalls, stops with a deadline), `supervise` (runs the pipeline in a child process and restarts it when it crashes) and `leak-check` (counts the objects a run leaves alive with the leaks tracer's checkpoints). `ninja` builds the C ones; `tests/test_examples.py` runs all three languages, and the Docker image now has Rust.
 - A documentation site built with Material for MkDocs from `docs/`, with the examples in linked language tabs. A GitHub Actions workflow builds it on every push and publishes master to GitHub Pages; `just docs` serves it locally.
+- Every example snippet in the docs says where it lives and which tests cover it, with links to GitHub. Tests declare what they cover with `@pytest.mark.covers("run_pipeline:build")`, and `mkdocs build --strict` fails when an included section has no covering test.
+- `tests/test_doc_samples.py` runs every command shown in `docs/` and the README and checks it against the output the page shows. Outputs that cannot be checked, such as debugger sessions and macOS crash reports, are titled "Illustrative output", and a block that is neither tested nor marked fails the suite.
 
 ### Changed
 - The style check uses GStreamer's own `gst-indent` 1.0.0 from PyPI instead of whatever GNU indent the system has, so macOS and Linux check with the same version. `just setup` installs it into `.venv`, `just indent` checks with it, the new `just fix-indent` rewrites files in place, and the pre-commit hook uses it. GitHub Actions runs `just indent` on every push.
 
 ### Fixed
 - `gstcrash.c` and `gstleaky.c` follow GStreamer's style.
+- The docs' outputs match what the commands print today: valgrind and AddressSanitizer line numbers, the qtmux no-PTS error, the run-pipeline retry output. The dot-file example creates its folder first.
+- The docs site URL is https://shashi.to/gst-c-crash/.
 
 ## [0.2.0] - 2026-11-16
 
