@@ -10,7 +10,7 @@ the work. faulty has four methods that crash the streaming thread once
 | `method`            | What it does                       | Exit status |
 |---------------------|------------------------------------|-------------|
 | `sigsegv` (default) | `raise(SIGSEGV)`                   | 139         |
-| `sigbus`            | `raise(SIGBUS)`                    | 138         |
+| `sigbus`            | `raise(SIGBUS)`                    | 138 on macOS, 135 on Linux |
 | `sigabrt`           | `raise(SIGABRT)`, like `abort()`, a failed `g_assert()` or glibc's heap checks | 134 |
 | `custom`            | writes to a null pointer           | 139         |
 
@@ -175,9 +175,10 @@ restarting (1/1)
 crashed: SIGSEGV
 ```
 
-The same split serves a pipeline that hangs (see
-[Handling errors](errors.md#stop-with-a-deadline)): the child exits when it
-cannot stop, and the parent starts it again. systemd's `Restart=on-failure`
+`supervise`'s child only waits for EOS or an error, so a pipeline that hangs
+hangs it too. The same split serves hangs once the child gives up on them as
+`run-pipeline` does (see [Handling errors](errors.md#stop-with-a-deadline)):
+it exits with status 3 when it cannot stop, and the parent starts it again. systemd's `Restart=on-failure`
 or a container runtime's restart policy is the same supervisor, one level up.
 
 ### Say something before dying
@@ -213,12 +214,16 @@ the parent, the core dump and the crash report still see it:
 === "C"
 
     ```c
+    --8<-- "examples/c/supervise.c:handler"
+
     --8<-- "examples/c/supervise.c:child"
     ```
 
 === "Rust"
 
     ```rust
+    --8<-- "examples/rust/src/bin/supervise.rs:handler"
+
     --8<-- "examples/rust/src/bin/supervise.rs:child"
     ```
 

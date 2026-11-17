@@ -211,7 +211,9 @@ messages waits forever. Check that data still moves: the bus loop above asks
 for the pipeline's position whenever a second passes without a message, and
 gives up when it has not changed for `--stall-timeout` seconds. The position
 comes from the sinks, which report the last buffer they got, so it stops
-moving when data does, live sources included.
+moving when data does, live sources included. Before the first buffer there
+is no position at all, so a source that takes longer than the timeout to
+start, such as a network stream, needs a longer one.
 
 The `watchdog` element does the same from inside the pipeline: it posts an
 error when no buffer passes it for `timeout` ms (see

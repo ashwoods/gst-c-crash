@@ -93,7 +93,7 @@ each, and how to watch for leaks in a running application.
 | `method`            | What it does                                                    | What gst-launch-1.0 or an app sees |
 |---------------------|-----------------------------------------------------------------|------------------------------------|
 | `sigsegv` (default) | `raise(SIGSEGV)` in the streaming thread                         | the process dies of SIGSEGV (exit 139) |
-| `sigbus`            | `raise(SIGBUS)`                                                  | dies of SIGBUS (exit 138) |
+| `sigbus`            | `raise(SIGBUS)`                                                  | dies of SIGBUS (exit 138 on macOS, 135 on Linux) |
 | `sigabrt`           | `raise(SIGABRT)`                                                 | dies of SIGABRT (exit 134) |
 | `custom`            | writes to a null pointer, a placeholder for your own crash       | dies of SIGSEGV (exit 139) |
 | `gst`               | posts a `GST_ELEMENT_ERROR` and returns `GST_FLOW_ERROR`          | an error from faulty on the bus: `Cannot do this anymore.` |

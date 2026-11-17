@@ -45,8 +45,10 @@ fn stop(pipeline: &gst::Element) -> bool {
                 "error: the pipeline did not stop within {} s",
                 STOP_TIMEOUT.as_secs()
             ));
-            // the stuck thread cannot be freed: leave it to the supervisor
-            std::process::exit(3);
+            // the stuck thread cannot be freed: leave it to the supervisor.
+            // _exit, not exit: no atexit handlers in a process whose
+            // streaming thread is stuck holding locks
+            unsafe { libc::_exit(3) }
         }
         Ok(Err(_)) => {
             say("error: could not stop the pipeline");
@@ -169,7 +171,7 @@ fn main() -> ExitCode {
     let mut retries = 0;
     let mut stall_timeout = 5;
     let mut pipeline = None;
-    let mut args = std::env::args().skip(1);
+    let mut args = gst_c_crash_examples::args();
     while let Some(arg) = args.next() {
         let number = |value: Option<String>| value.and_then(|v| v.parse().ok());
         match arg.as_str() {

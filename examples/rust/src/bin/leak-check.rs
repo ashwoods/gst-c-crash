@@ -3,8 +3,8 @@
 //!
 //!     GST_TRACERS=leaks leak-check PIPELINE
 //!
-//! Exit status: 0 when nothing leaked, 1 when something did, 2 without the
-//! leaks tracer.
+//! Exit status: 0 when nothing leaked, 1 when something did, 2 when it cannot
+//! check: no leaks tracer, or a pipeline that cannot be built or started.
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::process::ExitCode;
@@ -17,13 +17,19 @@ fn say(line: impl std::fmt::Display) {
     std::io::stdout().flush().unwrap();
 }
 
-fn play(pipeline: &gst::Element) {
-    let _ = pipeline.set_state(gst::State::Playing);
+/// Play the pipeline to EOS or an error. Return false if it cannot start.
+fn play(pipeline: &gst::Element) -> bool {
+    if pipeline.set_state(gst::State::Playing).is_err() {
+        say("error: could not start the pipeline");
+        let _ = pipeline.set_state(gst::State::Null);
+        return false;
+    }
     pipeline.bus().unwrap().timed_pop_filtered(
         gst::ClockTime::NONE,
         &[gst::MessageType::Eos, gst::MessageType::Error],
     );
     let _ = pipeline.set_state(gst::State::Null);
+    true
 }
 
 /// The type names of the structures in a list field of the checkpoint.
@@ -58,15 +64,20 @@ fn main() -> ExitCode {
     let pipeline = match gst::parse::launch(&description) {
         Ok(pipeline) => pipeline,
         Err(err) => {
-            eprintln!("error: could not build the pipeline: {}", err.message());
-            return ExitCode::from(1);
+            say(format!(
+                "error: could not build the pipeline: {}",
+                err.message()
+            ));
+            return ExitCode::from(2);
         }
     };
 
     // --8<-- [start:checkpoint]
     // the first run creates the objects GStreamer keeps for good (the
     // system clock, caps and pad templates): leave them out
-    play(&pipeline);
+    if !play(&pipeline) {
+        return ExitCode::from(2);
+    }
     leaks.emit_by_name::<()>("activity-start-tracking", &[]);
     play(&pipeline);
     let checkpoint = leaks.emit_by_name::<gst::Structure>("activity-get-checkpoint", &[]);

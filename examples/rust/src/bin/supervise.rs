@@ -49,6 +49,7 @@ fn signal_name(signal: i32) -> String {
 // handler such as crashpad takes a minidump from a watchdog that stays
 // healthy (sentry-rust's native integration does this), or the supervisor
 // below picks up the core dump.
+// --8<-- [start:handler]
 extern "C" fn on_fatal_signal(signal: libc::c_int) {
     let line: &[u8] = match signal {
         libc::SIGSEGV => b"fatal signal: SIGSEGV\n",
@@ -67,6 +68,7 @@ extern "C" fn on_fatal_signal(signal: libc::c_int) {
         libc::raise(signal);
     }
 }
+// --8<-- [end:handler]
 
 fn install_fatal_signal_handler() {
     for signal in [
@@ -100,7 +102,11 @@ fn child(description: &str) -> ExitCode {
             return ExitCode::from(1);
         }
     };
-    let _ = pipeline.set_state(gst::State::Playing);
+    if pipeline.set_state(gst::State::Playing).is_err() {
+        eprintln!("error: could not start the pipeline");
+        let _ = pipeline.set_state(gst::State::Null);
+        return ExitCode::from(1);
+    }
     let msg = pipeline.bus().unwrap().timed_pop_filtered(
         gst::ClockTime::NONE,
         &[gst::MessageType::Eos, gst::MessageType::Error],
@@ -148,7 +154,7 @@ fn main() -> ExitCode {
     let mut restarts = 0;
     let mut is_child = false;
     let mut pipeline = None;
-    let mut args = std::env::args().skip(1);
+    let mut args = gst_c_crash_examples::args();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--restarts" => match args.next().and_then(|v| v.parse().ok()) {

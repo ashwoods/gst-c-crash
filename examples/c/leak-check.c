@@ -22,8 +22,8 @@
  *
  *     GST_TRACERS=leaks leak-check PIPELINE
  *
- * Exit status: 0 when nothing leaked, 1 when something did, 2 without the
- * leaks tracer.
+ * Exit status: 0 when nothing leaked, 1 when something did, 2 when it cannot
+ * check: no leaks tracer, or a pipeline that cannot be built or started.
  */
 
 #include <stdarg.h>
@@ -44,18 +44,26 @@ say (const gchar * format, ...)
   fflush (stdout);
 }
 
-static void
+/* Play the pipeline to EOS or an error. Return FALSE if it cannot start. */
+static gboolean
 play (GstElement * pipeline)
 {
-  GstBus *bus = gst_element_get_bus (pipeline);
+  GstBus *bus;
   GstMessage *msg;
 
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  if (gst_element_set_state (pipeline, GST_STATE_PLAYING) ==
+      GST_STATE_CHANGE_FAILURE) {
+    say ("error: could not start the pipeline");
+    gst_element_set_state (pipeline, GST_STATE_NULL);
+    return FALSE;
+  }
+  bus = gst_element_get_bus (pipeline);
   msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE,
       GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_message_unref (msg);
   gst_object_unref (bus);
+  return TRUE;
 }
 
 /* --8<-- [start:tracer] */
@@ -101,18 +109,21 @@ count_types (GHashTable * alive, const GstStructure * checkpoint,
 
 /* --8<-- [start:checkpoint] */
 /* Play the pipeline twice and print the objects the second run left alive.
- * Return how many types leaked. */
-static guint
+ * Return how many types leaked, or -1 if the pipeline cannot start. */
+static gint
 check_leaks (GstTracer * leaks, GstElement * pipeline)
 {
   GstStructure *checkpoint = NULL;
   GHashTable *alive = g_hash_table_new (g_str_hash, g_str_equal);
   GList *names, *l;
-  guint leaked = 0;
+  gint leaked = 0;
 
   /* the first run creates the objects GStreamer keeps for good (the
    * system clock, caps and pad templates): leave them out */
-  play (pipeline);
+  if (!play (pipeline)) {
+    g_hash_table_unref (alive);
+    return -1;
+  }
   g_signal_emit_by_name (leaks, "activity-start-tracking");
   play (pipeline);
   g_signal_emit_by_name (leaks, "activity-get-checkpoint", &checkpoint);
@@ -144,7 +155,7 @@ main (int argc, char *argv[])
   GstTracer *leaks;
   GstElement *pipeline;
   GError *error = NULL;
-  guint leaked;
+  gint leaked;
 
   if (argc != 2) {
     g_printerr ("usage: %s PIPELINE\n", argv[0]);
@@ -158,7 +169,7 @@ main (int argc, char *argv[])
   }
   pipeline = gst_parse_launch (argv[1], &error);
   if (error != NULL) {
-    g_printerr ("error: could not build the pipeline: %s\n", error->message);
+    say ("error: could not build the pipeline: %s", error->message);
     g_error_free (error);
     gst_clear_object (&pipeline);
     gst_object_unref (leaks);
@@ -166,9 +177,9 @@ main (int argc, char *argv[])
   }
 
   leaked = check_leaks (leaks, pipeline);
-  if (!leaked)
+  if (leaked == 0)
     say ("no leaks");
   gst_object_unref (pipeline);
   gst_object_unref (leaks);
-  return leaked ? 1 : 0;
+  return leaked < 0 ? 2 : leaked > 0 ? 1 : 0;
 }

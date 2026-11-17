@@ -3,8 +3,8 @@ left alive, with the leaks tracer.
 
     GST_TRACERS=leaks python3 leak_check.py PIPELINE
 
-Exit status: 0 when nothing leaked, 1 when something did, 2 without the
-leaks tracer.
+Exit status: 0 when nothing leaked, 1 when something did, 2 when it cannot
+check: no leaks tracer, or a pipeline that cannot be built or started.
 """
 import sys
 from collections import Counter
@@ -12,7 +12,7 @@ from collections import Counter
 import gi
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst  # noqa: E402
+from gi.repository import GLib, Gst  # noqa: E402
 
 
 def say(line):
@@ -20,10 +20,16 @@ def say(line):
 
 
 def play(pipeline):
-    pipeline.set_state(Gst.State.PLAYING)
+    """Play the pipeline to EOS or an error. Return False if it cannot start."""
+    if pipeline.set_state(Gst.State.PLAYING) == \
+            Gst.StateChangeReturn.FAILURE:
+        say("error: could not start the pipeline")
+        pipeline.set_state(Gst.State.NULL)
+        return False
     pipeline.get_bus().timed_pop_filtered(
         Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS | Gst.MessageType.ERROR)
     pipeline.set_state(Gst.State.NULL)
+    return True
 
 
 def main():
@@ -36,12 +42,17 @@ def main():
         say("error: no leaks tracer: run with GST_TRACERS=leaks")
         return 2
     # --8<-- [end:tracer]
-    pipeline = Gst.parse_launch(sys.argv[1])
+    try:
+        pipeline = Gst.parse_launch(sys.argv[1])
+    except GLib.Error as err:
+        say(f"error: could not build the pipeline: {err.message}")
+        return 2
 
     # --8<-- [start:checkpoint]
     # the first run creates the objects GStreamer keeps for good (the
     # system clock, caps and pad templates): leave them out
-    play(pipeline)
+    if not play(pipeline):
+        return 2
     leaks.emit("activity-start-tracking")
     play(pipeline)
     checkpoint = leaks.emit("activity-get-checkpoint")

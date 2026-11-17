@@ -15,7 +15,7 @@ import sys
 import gi
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst  # noqa: E402
+from gi.repository import GLib, Gst  # noqa: E402
 
 
 def say(line):
@@ -29,8 +29,17 @@ def child(description):
     # thread's stack to stderr, then die of the signal as before
     faulthandler.enable()
     Gst.init(None)
-    pipeline = Gst.parse_launch(description)
-    pipeline.set_state(Gst.State.PLAYING)
+    try:
+        pipeline = Gst.parse_launch(description)
+    except GLib.Error as err:
+        print(f"error: could not build the pipeline: {err.message}",
+              file=sys.stderr)
+        return 1
+    if pipeline.set_state(Gst.State.PLAYING) == \
+            Gst.StateChangeReturn.FAILURE:
+        print("error: could not start the pipeline", file=sys.stderr)
+        pipeline.set_state(Gst.State.NULL)
+        return 1
     msg = pipeline.get_bus().timed_pop_filtered(
         Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS | Gst.MessageType.ERROR)
     pipeline.set_state(Gst.State.NULL)

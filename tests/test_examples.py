@@ -88,7 +88,7 @@ def test_run_pipeline_stop_failure(example):
 
 
 def test_run_pipeline_gives_up_on_a_hang(example):
-    out = run(example("run_pipeline"), "--stall-timeout", "1",
+    out = run(example("run_pipeline"), "--stall-timeout=1",
               f"{SOURCE} method=hang ! fakesink")
     assert out.stdout.splitlines() == [
         "stalled: no data for 1 s",
@@ -108,6 +108,7 @@ def test_run_pipeline_eos(example):
     assert out.returncode == 0
 
 
+
 @pytest.mark.parametrize("method,signal", [
     ("sigsegv", "SIGSEGV"), ("sigabrt", "SIGABRT"), ("sigbus", "SIGBUS")])
 def test_supervise_restarts_a_crashed_child(example, method, signal):
@@ -121,6 +122,14 @@ def test_supervise_restarts_a_crashed_child(example, method, signal):
 
 def test_supervise_reports_an_error_exit(example):
     out = run(example("supervise"), f"{SOURCE} method=gst ! fakesink")
+    assert out.stdout.splitlines() == ["failed: exit 1"]
+    assert out.returncode == 1
+
+
+def test_supervise_start_failure(example):
+    # faulty's start method posts no error: a child that ignores the failed
+    # set_state waits for a message forever
+    out = run(example("supervise"), f"{SOURCE} method=start ! fakesink")
     assert out.stdout.splitlines() == ["failed: exit 1"]
     assert out.returncode == 1
 
@@ -145,6 +154,13 @@ def test_leak_check_cannot_see_malloc_leaks(example):
               env={"GST_TRACERS": "leaks"})
     assert out.stdout.splitlines() == ["no leaks"]
     assert out.returncode == 0
+
+
+def test_leak_check_start_failure(example):
+    out = run(example("leak_check"), f"{SOURCE} method=start ! fakesink",
+              env={"GST_TRACERS": "leaks"})
+    assert out.stdout.splitlines() == ["error: could not start the pipeline"]
+    assert out.returncode == 2
 
 
 def test_leak_check_needs_the_tracer(example):

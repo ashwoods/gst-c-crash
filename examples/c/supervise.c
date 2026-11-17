@@ -95,6 +95,7 @@ say (const gchar * format, ...)
  * a handler only copies the registers, or the kernel writes a core file,
  * and a healthy process reads the memory and symbolizes it.
  */
+/* --8<-- [start:handler] */
 static void
 fatal_signal_handler (int sig)
 {
@@ -122,6 +123,8 @@ fatal_signal_handler (int sig)
   signal (sig, SIG_DFL);
   raise (sig);
 }
+
+/* --8<-- [end:handler] */
 
 /* --8<-- [start:child] */
 /* Play the pipeline until EOS (exit 0) or an error (exit 1). */
@@ -155,7 +158,13 @@ child (const gchar * description)
     gst_clear_object (&pipeline);
     return 1;
   }
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  if (gst_element_set_state (pipeline, GST_STATE_PLAYING) ==
+      GST_STATE_CHANGE_FAILURE) {
+    g_printerr ("error: could not start the pipeline\n");
+    gst_element_set_state (pipeline, GST_STATE_NULL);
+    gst_object_unref (pipeline);
+    return 1;
+  }
   bus = gst_element_get_bus (pipeline);
   msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE,
       GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
