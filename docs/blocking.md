@@ -74,12 +74,12 @@ thread-rusage, thread-id=(guint64)191303737194544, …, average-cpuload=(uint)12
 thread-rusage, thread-id=(guint64)191303738668032, …, average-cpuload=(uint)912, …, time=(guint64)2004144784;
 ```
 
-(Linux.) One thread used 2.0 s of CPU in the 2.2 s run; with `method=stall`
+One thread used 2.0 s of CPU in the 2.2 s run; with `method=stall`
 no thread uses more than 30 ms. Like the latency tracer, it reports only once
 the spin ends. To watch it happen, look at the threads: on Linux,
 `top -H -p <pid>` names them (cut to 15 characters):
 
-```
+```text title="Illustrative output: top on Linux"
     PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
      13 root      20   0  163656  11060   6300 R  99.0   0.6   0:02.26 videote+
 ```
@@ -87,7 +87,7 @@ the spin ends. To watch it happen, look at the threads: on Linux,
 macOS `top` shows only the process (`gst-launch-1.0 98.4`); lldb's `bt all`
 names the thread and the loop:
 
-```
+```text title="Illustrative output: lldb on macOS"
   thread #7, name = 'videotestsrc0:src'
       frame #0: …libsystem_kernel.dylib`mach_absolute_time + 108
       frame #1: …libglib-2.0.0.dylib`g_get_monotonic_time_ns + 24
@@ -115,7 +115,7 @@ gdb -p $! -batch -ex "thread apply all bt"        # Linux
 kill -9 $!
 ```
 
-```
+```text title="Illustrative output: lldb on macOS"
   thread #7, name = 'videotestsrc0:src'
       frame #0: …libsystem_kernel.dylib`__psynch_mutexwait + 8
       …
@@ -135,7 +135,7 @@ kill -9 $!
 gdb in Docker (`docker compose run --rm --cap-add=SYS_PTRACE shell`, so it
 may attach) shows the same pair; Debian's GStreamer frames have no names:
 
-```
+```text title="Illustrative output: gdb in Docker"
 Thread 4 (Thread … (LWP 15) "faulty-deadlock"):
 #0  futex_wait (private=0, expected=2, futex_word=…) at ../sysdeps/nptl/futex-internal.h:146
 …
@@ -159,7 +159,7 @@ Everything else that needs A or B blocks too, the app included: faulty's
 property getters take the object lock, so `tests/faulty_deadlock.py`'s main
 thread freezes in `faulty.get_property()`:
 
-```
+```text title="Illustrative output: lldb on macOS"
 * thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
   * frame #0: …libsystem_kernel.dylib`__psynch_mutexwait + 8
     …
@@ -176,3 +176,6 @@ thread in `g_usleep` and nothing else stuck.
 short one reaches EOS, that `spin`'s CPU time (`RUSAGE_CHILDREN`) is close to
 its wall time, and that `deadlock` blocks gst-launch-1.0 and a property read
 (`tests/faulty_deadlock.py`, which `faulthandler` ends after 3 s).
+`tests/test_doc_samples.py` runs the watchdog, latency and rusage commands on
+this page and checks the output shown; `top` and the debugger sessions are
+marked illustrative.

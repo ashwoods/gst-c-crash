@@ -101,6 +101,11 @@ One failure usually posts several errors. With `method=gst` faulty posts its
 own, and the source, whose push failed, posts a second one, as
 `gst-launch-1.0` shows:
 
+```sh
+gst-launch-1.0 -q videotestsrc num-buffers=50 \
+    ! faulty num-buffers=5 method=gst ! fakesink
+```
+
 ```
 ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0: Cannot do this anymore.
 Additional debug info:
@@ -193,10 +198,13 @@ faulty counts down from `num-buffers` again every time it starts, so with
 
 ```
 error: from /GstPipeline:pipeline0/GstFaulty:faulty0: Cannot do this anymore.
+debug: ../gst/gstfaulty.c(308): gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0
 retrying (1/2)
 error: from /GstPipeline:pipeline0/GstFaulty:faulty0: Cannot do this anymore.
+debug: ../gst/gstfaulty.c(308): gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0
 retrying (2/2)
 error: from /GstPipeline:pipeline0/GstFaulty:faulty0: Cannot do this anymore.
+debug: ../gst/gstfaulty.c(308): gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0
 ```
 
 In a real application, wait longer between attempts, and use the error's
@@ -284,6 +292,7 @@ layout say why. Both are cheap to keep:
   error:
 
   ```sh
+  mkdir -p /tmp/dots    # the folder has to exist
   GST_DEBUG_DUMP_DOT_DIR=/tmp/dots gst-launch-1.0 -q videotestsrc num-buffers=50 \
       ! faulty num-buffers=5 method=gst ! fakesink
   ls /tmp/dots
@@ -301,4 +310,5 @@ layout say why. Both are cheap to keep:
 
 `tests/test_examples.py` runs each language's `run-pipeline` against every
 method on this page and checks that all three print the same lines and exit
-with the same status.
+with the same status. `tests/test_doc_samples.py` runs every command on this
+page and checks the output shown.

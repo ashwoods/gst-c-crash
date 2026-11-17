@@ -50,12 +50,12 @@ valgrind gst-launch-1.0 -q videotestsrc num-buffers=20 \
 
 ```
 Invalid write of size 4
-   at 0x58122AC: faulty_use_after_free (gstfaulty.c:134)
-   by 0x5812307: faulty_call_method (gstfaulty.c:153)
-   by 0x5812987: gst_faulty_transform_ip (gstfaulty.c:275)
+   at 0x5C12BFC: faulty_use_after_free (gstfaulty.c:143)
+   by 0x5C12D73: faulty_call_method (gstfaulty.c:200)
+   by 0x5C135E3: gst_faulty_transform_ip (gstfaulty.c:341)
  Address 0x… is 0 bytes inside a block of size 4 free'd
    at 0x4887B40: free
-   by 0x581229F: faulty_use_after_free (gstfaulty.c:133)
+   by 0x5C12BEF: faulty_use_after_free (gstfaulty.c:142)
 ```
 
 `double-free` gives `Invalid free()` with both frees' stacks. For `unref`, the
@@ -78,9 +78,9 @@ GST_PLUGIN_PATH=/tmp/asan/gst LD_PRELOAD=$(gcc -print-file-name=libasan.so) \
 
 ```
 ERROR: AddressSanitizer: heap-use-after-free on address 0x…
-    #0 in faulty_use_after_free ../../src/gst/gstfaulty.c:134
+    #0 in faulty_use_after_free ../../src/gst/gstfaulty.c:143
 freed by thread T1 (videotestsrc0:s) here:
-    #1 in faulty_use_after_free ../../src/gst/gstfaulty.c:133
+    #1 in faulty_use_after_free ../../src/gst/gstfaulty.c:142
 previously allocated by thread T1 (videotestsrc0:s) here:
 ```
 
@@ -97,3 +97,5 @@ tail call, so their own frames can vanish from these stacks.
 `tests/test_faulty.py` checks `double-free` aborts everywhere, the macOS
 behaviour above on macOS, and that valgrind names each method's function
 where valgrind is installed, as it is in the Docker image.
+`tests/test_doc_samples.py` runs every command on this page and checks the
+output shown, valgrind and AddressSanitizer included on Linux.
