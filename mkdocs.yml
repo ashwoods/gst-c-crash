@@ -1,6 +1,6 @@
 site_name: gst-c-crash
 site_description: GStreamer elements that crash, fail and leak on purpose, and how to debug them
-site_url: https://ashwoods.github.io/gst-c-crash/
+site_url: https://shashi.to/gst-c-crash/
 repo_url: https://github.com/ashwoods/gst-c-crash
 edit_uri: edit/master/docs/
 

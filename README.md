@@ -15,7 +15,7 @@ The plugin contains three filter elements based on `GstBaseTransform`:
 - `mangler`: breaks timestamps and events.
 
 The tutorials, with examples in Python, C and Rust, are at
-<https://ashwoods.github.io/gst-c-crash/>:
+<https://shashi.to/gst-c-crash/>:
 
 - [Handling errors](docs/errors.md) in your application: the bus, state
   changes, retries, stalls and a bounded shutdown
