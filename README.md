@@ -14,6 +14,19 @@ The plugin contains three filter elements based on `GstBaseTransform`:
 - `faulty`: provides a few ways of crashing a pipeline.
 - `mangler`: breaks timestamps and events.
 
+The tutorials, with examples in Python, C and Rust, are at
+<https://ashwoods.github.io/gst-c-crash/>:
+
+- [Handling errors](docs/errors.md) in your application: the bus, state
+  changes, retries, stalls and a bounded shutdown
+- [Crashes](docs/crashes.md): debuggers, crash reports, core dumps,
+  supervising the pipeline and crash reporters
+- [Leaks](docs/leaks.md): the leaks tracer, checkpoints in a running
+  application, and the memory tools
+- [Memory corruption](docs/memory-corruption.md),
+  [Blocked pipelines](docs/blocking.md) and
+  [Timestamps and events](docs/timestamps-and-events.md)
+
 ## Quickstart
 
 ### Installation
@@ -56,10 +69,12 @@ All three elements pass buffers through untouched until `num-buffers` buffers
 
 #### Leaky
 
+<!-- --8<-- [start:leaky] -->
 | `method`           | Leaks, per buffer                                                          |
 |--------------------|----------------------------------------------------------------------------|
 | `malloc` (default) | a 4-byte `malloc()` that is never freed                                    |
 | `ref`              | an extra reference on the buffer, so the whole frame and its memory stay alive |
+<!-- --8<-- [end:leaky] -->
 
 A `ref` leak is a full video frame, so bound the source: with 110 buffers and
 the default `num-buffers` both methods leak 10 times.
@@ -68,40 +83,13 @@ the default `num-buffers` both methods leak 10 times.
 gst-launch-1.0 videotestsrc num-buffers=110 ! leaky method=ref ! fakesink
 ```
 
-To see the leak:
-
-- `ref`, with GStreamer's leaks tracer. On its own it warns `Leaks detected`;
-  `GST_DEBUG=GST_TRACER:7` lists every object still alive, here 10 `GstBuffer`s:
-
-  ```sh
-  GST_TRACERS=leaks GST_DEBUG=GST_TRACER:7 gst-launch-1.0 videotestsrc num-buffers=110 \
-      ! leaky method=ref ! fakesink 2>&1 | grep -c 'type-name=(string)GstBuffer,'
-  ```
-
-- `malloc`, on macOS, with `leaks`. It reports
-  `9 INSTANCES OF 'ROOT LEAK: <malloc in leaky_malloc_leak>'`: the last block
-  is still reachable through a global, so a malloc leak always shows one fewer.
-
-  ```sh
-  MallocStackLogging=1 leaks --atExit -- gst-launch-1.0 -q videotestsrc num-buffers=110 \
-      ! leaky ! fakesink
-  ```
-
-- `malloc`, on Linux (for example in `docker compose run --rm shell`), with
-  valgrind or AddressSanitizer; both report 36 bytes in 9 blocks from
-  `leaky_malloc_leak (gstleaky.c:76)`. LeakSanitizer and valgrind do not run on
-  macOS arm64.
-
-  ```sh
-  valgrind --leak-check=full gst-launch-1.0 -q videotestsrc num-buffers=110 ! leaky ! fakesink
-
-  meson setup /tmp/asan -Db_sanitize=address && ninja -C /tmp/asan
-  GST_PLUGIN_PATH=/tmp/asan/gst LD_PRELOAD=$(gcc -print-file-name=libasan.so) \
-      gst-launch-1.0 -q videotestsrc num-buffers=110 ! leaky ! fakesink
-  ```
+GStreamer's leaks tracer finds `ref` leaks, and macOS `leaks`, valgrind or
+AddressSanitizer find `malloc` ones: [docs/leaks.md](docs/leaks.md) shows
+each, and how to watch for leaks in a running application.
 
 #### Faulty
 
+<!-- --8<-- [start:faulty] -->
 | `method`            | What it does                                                    | What gst-launch-1.0 or an app sees |
 |---------------------|-----------------------------------------------------------------|------------------------------------|
 | `sigsegv` (default) | `raise(SIGSEGV)` in the streaming thread                         | the process dies of SIGSEGV (exit 139) |
@@ -119,6 +107,7 @@ To see the leak:
 | `deadlock`          | the streaming thread and a helper thread, `faulty-deadlock`, take two locks in opposite orders. Logs `Deadlocking the streaming thread.` | data stops for good, with no CPU use, and so does the app's `g_object_get()` on faulty: Ctrl-C does nothing, the process has to be killed. Needs a debugger to see why |
 | `start`             | `start()` fails, whatever `num-buffers` is                       | `Failed to set pipeline to PAUSED.` (exit 255) |
 | `stop`              | the READY→NULL state change fails, every time                    | the stream runs to EOS, then `Failed to stop.` (exit 1); an app's `set_state(NULL)` returns `FAILURE` |
+<!-- --8<-- [end:faulty] -->
 
 ```sh
 gst-launch-1.0 videotestsrc ! faulty num-buffers=5 method=sigabrt ! fakesink
@@ -135,7 +124,9 @@ how long `stall` and `spin` block, in milliseconds.
 
 On Linux gst-launch-1.0 catches SIGSEGV and waits for a debugger
 (`Spinning. Please run 'gdb gst-launch-1.0 <pid>'`); pass `--no-fault` to let
-the signal kill it.
+the signal kill it. [docs/crashes.md](docs/crashes.md) shows how to get the
+stack of each crash, and [docs/errors.md](docs/errors.md) how an application
+should handle `gst`, `flow-error`, `start`, `stop` and `hang`.
 
 #### Mangler
 
@@ -143,6 +134,7 @@ mangler breaks timestamps and events instead of crashing, so a muxer, a sink,
 an app or gst-validate has something to notice. It logs what it does once, at
 ERROR level (`GST_DEBUG=mangler:1`).
 
+<!-- --8<-- [start:mangler] -->
 | `mode`                | What it does                                                  | What an app, muxer or tool sees |
 |-----------------------|---------------------------------------------------------------|---------------------------------|
 | `no-pts` (default)    | clears PTS and DTS                                            | qtmux fails with `Buffer has no PTS.` (exit 1); matroskamux only warns `Invalid buffer timestamp` |
@@ -154,6 +146,7 @@ ERROR level (`GST_DEBUG=mangler:1`).
 | `drop-segment`        | swallows segment events                                       | `Got data flow before segment event` warnings; gst-validate reports `buffer::before-segment` and `event::eos-without-segment` |
 | `drop-stream-start`   | swallows stream-start events                                  | `Got data flow before stream-start event` warnings, and no stream-start message on the bus |
 | `sticky-storm`        | sends the caps again before every buffer                      | gst-validate reports `event::caps-duplicate`; `fakesink silent=false` lists 16 caps events |
+<!-- --8<-- [end:mangler] -->
 
 ```sh
 gst-launch-1.0 videotestsrc num-buffers=20 ! jpegenc ! mangler num-buffers=5 mode=no-pts ! qtmux ! fakesink

@@ -1,0 +1,45 @@
+site_name: gst-c-crash
+site_description: GStreamer elements that crash, fail and leak on purpose, and how to debug them
+site_url: https://ashwoods.github.io/gst-c-crash/
+repo_url: https://github.com/ashwoods/gst-c-crash
+edit_uri: edit/master/docs/
+
+nav:
+  - Overview: index.md
+  - Handling errors: errors.md
+  - Crashes: crashes.md
+  - Leaks: leaks.md
+  - Memory corruption: memory-corruption.md
+  - Blocked pipelines: blocking.md
+  - Timestamps and events: timestamps-and-events.md
+
+theme:
+  name: material
+  features:
+    # picking a language in one tab group picks it everywhere
+    - content.tabs.link
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      # the examples live outside docs/
+      base_path: [.]
+      check_paths: true
+      dedent_subsections: true

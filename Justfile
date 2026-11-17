@@ -55,6 +55,10 @@ indent:
     [ $status = 0 ] && echo "Style OK" || echo "Style errors: fix them with gst-indent <file>" >&2
     exit $status
 
+# Serve the docs site with live reload at http://127.0.0.1:8000
+docs:
+    .venv/bin/mkdocs serve
+
 # Remove build/
 clean:
     rm -rf build

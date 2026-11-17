@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Tutorials on [handling errors](docs/errors.md) in an application, [crashes](docs/crashes.md) and [leaks](docs/leaks.md), covering faulty's signal, `gst`, `flow-error`, `start`, `stop` and `hang` methods and both leaky methods.
+- `examples/` has three small applications, each in Python, C and Rust: `run-pipeline` (watches the bus, checks state changes, retries errors, detects stalls, stops with a deadline), `supervise` (runs the pipeline in a child process and restarts it when it crashes) and `leak-check` (counts the objects a run leaves alive with the leaks tracer's checkpoints). `ninja` builds the C ones; `tests/test_examples.py` runs all three languages, and the Docker image now has Rust.
+- A documentation site built with Material for MkDocs from `docs/`, with the examples in linked language tabs. A GitHub Actions workflow builds it on every push and publishes master to GitHub Pages; `just docs` serves it locally.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

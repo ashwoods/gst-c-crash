@@ -8,6 +8,9 @@ set -e
   python3 -m venv --system-site-packages .venv
   .venv/bin/pip install -q --disable-pip-version-check 'mixtape==0.5.1' pytest pytest-asyncio
 }
+# the docs site, which tests/test_docs.py builds
+.venv/bin/python -c 'import material' 2>/dev/null ||
+  .venv/bin/pip install -q --disable-pip-version-check -r docs/requirements.txt
 # meson wraps the compiler in sccache when it is installed, and sccache puts
 # its socket in TMPDIR: the lander's checks set one too long for a socket
 # path ("path must be shorter than SUN_LEN"), so build without it.

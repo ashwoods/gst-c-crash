@@ -57,6 +57,9 @@ build/
 .vscode
 .devcontainer
 
+# the docs site (mkdocs build)
+site/
+
 # python tests 
 .pytest_cache
 .mypy_cache
