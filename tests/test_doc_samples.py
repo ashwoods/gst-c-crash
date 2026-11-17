@@ -256,7 +256,8 @@ SAMPLES = [
           shows="retrying (1/2)",
           expect=("error: from /GstPipeline:pipeline0/GstFaulty:faulty0:"
                   " Cannot do this anymore.",
-                  "debug: ../gst/gstfaulty.c(308): gst_faulty_transform_ip ()",
+                  # gcc gives the macro's first line (307), clang its last
+                  "debug: ../gst/gstfaulty.c(30", "): gst_faulty_transform_ip ()",
                   "retrying (1/2)", "retrying (2/2)"))
       for lang, contains in [("python", "python3 examples/python/run_pipeline.py"
                                         " --retries 2"),
@@ -269,8 +270,7 @@ SAMPLES = [
         "    ! faulty num-buffers=5 method=gst ! fakesink", status=1,
         expect=("ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
                 " Cannot do this anymore.",
-                "gstfaulty.c(308): gst_faulty_transform_ip ():"
-                " /GstPipeline:pipeline0/GstFaulty:faulty0",
+                "): gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0",
                 "ERROR: from element /GstPipeline:pipeline0/GstVideoTestSrc:"
                 "videotestsrc0: Internal data stream error.",
                 "streaming stopped, reason error (-5)")),
