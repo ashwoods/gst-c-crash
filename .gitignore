@@ -65,3 +65,6 @@ __pycache__
 # Ultimate: machine-local
 .ultimate/extensions/fawkes
 .venv/
+
+# Rust examples
+examples/rust/target/
