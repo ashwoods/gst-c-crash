@@ -56,6 +56,7 @@ def run(cmd, *args, env=None, timeout=30):
         env={**os.environ, **(env or {})})
 
 
+@pytest.mark.covers("run_pipeline:retry")
 def test_run_pipeline_retries_an_element_error(example):
     out = run(example("run_pipeline"), "--retries", "1",
               f"{SOURCE} method=gst ! fakesink")
@@ -66,6 +67,7 @@ def test_run_pipeline_retries_an_element_error(example):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("run_pipeline:bus")
 def test_run_pipeline_flow_error_blames_the_source(example):
     out = run(example("run_pipeline"), f"{SOURCE} method=flow-error ! fakesink")
     assert "error: from /GstPipeline:pipeline0/GstVideoTestSrc:videotestsrc0: " \
@@ -74,6 +76,7 @@ def test_run_pipeline_flow_error_blames_the_source(example):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("run_pipeline:retry")
 def test_run_pipeline_start_failure_is_not_retried(example):
     out = run(example("run_pipeline"), "--retries", "2",
               f"{SOURCE} method=start ! fakesink")
@@ -81,12 +84,14 @@ def test_run_pipeline_start_failure_is_not_retried(example):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("run_pipeline:stop")
 def test_run_pipeline_stop_failure(example):
     out = run(example("run_pipeline"), f"{SOURCE} method=stop ! fakesink")
     assert out.stdout.splitlines() == ["eos", "error: could not stop the pipeline"]
     assert out.returncode == 1
 
 
+@pytest.mark.covers("run_pipeline:bus", "run_pipeline:stop")
 def test_run_pipeline_gives_up_on_a_hang(example):
     out = run(example("run_pipeline"), "--stall-timeout=1",
               f"{SOURCE} method=hang ! fakesink")
@@ -96,12 +101,14 @@ def test_run_pipeline_gives_up_on_a_hang(example):
     assert out.returncode == 3
 
 
+@pytest.mark.covers("run_pipeline:build")
 def test_run_pipeline_bad_description(example):
     out = run(example("run_pipeline"), "videotestsrc ! nosuchelement ! fakesink")
     assert out.stdout.startswith("error: could not build the pipeline: ")
     assert out.returncode == 2
 
 
+@pytest.mark.covers("run_pipeline:bus")
 def test_run_pipeline_eos(example):
     out = run(example("run_pipeline"), "videotestsrc num-buffers=5 ! fakesink")
     assert out.stdout.splitlines() == ["eos"]
@@ -109,6 +116,9 @@ def test_run_pipeline_eos(example):
 
 
 
+@pytest.mark.covers("supervise:supervise",
+                    "supervise:child",
+                    "supervise:handler")
 @pytest.mark.parametrize("method,signal", [
     ("sigsegv", "SIGSEGV"), ("sigabrt", "SIGABRT"), ("sigbus", "SIGBUS")])
 def test_supervise_restarts_a_crashed_child(example, method, signal):
@@ -120,12 +130,14 @@ def test_supervise_restarts_a_crashed_child(example, method, signal):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("supervise:supervise")
 def test_supervise_reports_an_error_exit(example):
     out = run(example("supervise"), f"{SOURCE} method=gst ! fakesink")
     assert out.stdout.splitlines() == ["failed: exit 1"]
     assert out.returncode == 1
 
 
+@pytest.mark.covers("supervise:child")
 def test_supervise_start_failure(example):
     # faulty's start method posts no error: a child that ignores the failed
     # set_state waits for a message forever
@@ -134,12 +146,14 @@ def test_supervise_start_failure(example):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("supervise:supervise")
 def test_supervise_eos(example):
     out = run(example("supervise"), "videotestsrc num-buffers=5 ! fakesink")
     assert out.stdout.splitlines() == ["eos"]
     assert out.returncode == 0
 
 
+@pytest.mark.covers("leak_check:checkpoint")
 def test_leak_check_finds_ref_leaks(example):
     out = run(example("leak_check"),
               "videotestsrc num-buffers=110 ! leaky method=ref ! fakesink",
@@ -148,6 +162,7 @@ def test_leak_check_finds_ref_leaks(example):
     assert out.returncode == 1
 
 
+@pytest.mark.covers("leak_check:checkpoint")
 def test_leak_check_cannot_see_malloc_leaks(example):
     out = run(example("leak_check"),
               "videotestsrc num-buffers=110 ! leaky method=malloc ! fakesink",
@@ -163,6 +178,7 @@ def test_leak_check_start_failure(example):
     assert out.returncode == 2
 
 
+@pytest.mark.covers("leak_check:tracer")
 def test_leak_check_needs_the_tracer(example):
     env = {k: v for k, v in os.environ.items() if k != "GST_TRACERS"}
     out = subprocess.run(

@@ -4,6 +4,13 @@ site_url: https://shashi.to/gst-c-crash/
 repo_url: https://github.com/ashwoods/gst-c-crash
 edit_uri: edit/master/docs/
 
+# adds a "Source: … · tested by …" line under each snippet from examples/
+hooks:
+  - hooks/source_lines.py
+
+extra_css:
+  - stylesheets/source-line.css
+
 nav:
   - Overview: index.md
   - Handling errors: errors.md
@@ -33,6 +40,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - attr_list
   - tables
   - pymdownx.highlight
   - pymdownx.superfences
