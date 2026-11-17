@@ -173,7 +173,8 @@ the first one's timestamp.
 The [Justfile](Justfile) wraps the common tasks: run `just` to list them.
 `just setup` creates the virtualenv and `build/`, `just test` builds and runs
 the tests (extra arguments go to pytest: `just test -k stall`), `just indent`
-checks the style and `just docker-test` runs the tests in Docker.
+checks the style, `just fix-indent` fixes it and `just docker-test` runs the
+tests in Docker.
 
 Run the tests in a virtualenv that sees the system's PyGObject and GStreamer
 bindings (Homebrew `pygobject3`, Debian `python3-gst-1.0`). Install `mixtape`
@@ -198,11 +199,15 @@ gst-validate tests skip where `gst-validate-1.0` is missing, as in Docker
 (Debian has no package for it). GitHub Actions runs
 `docker compose run --rm test`, valgrind included, on every push.
 
-The code follows GStreamer's style. `hooks/pre-commit.hook` checks it with GNU
-indent (`brew install gnu-indent`, Debian `indent`) and refuses to commit
-without it. GStreamer's style comes from GNU indent 2.2.12 (Debian's); 2.2.13,
-Homebrew's, writes `GstBuffer *buf` and flags every `GstBuffer * buf`. Install
-it with:
+The code follows GStreamer's style, checked with GStreamer's own
+[gst-indent](https://gitlab.freedesktop.org/gstreamer/gst-indent), a fork of
+GNU indent 2.2.12 with that style built in. `just setup` installs it into
+`.venv` from PyPI (`pip install gst-indent==1.0.0`; wheels for macOS, x86
+Linux and Windows), so every platform checks with the same version.
+`just indent` checks `gst/*.c`, `just fix-indent` rewrites them in place, and
+GitHub Actions runs `just indent` on every push. `hooks/pre-commit.hook` checks
+the staged `.c` files with `.venv`'s `gst-indent-1.0`, or the one on `PATH`,
+and refuses to commit without it. Install the hook with:
 
 ```sh
 install -m 755 hooks/pre-commit.hook "$(git rev-parse --git-path hooks)/pre-commit"

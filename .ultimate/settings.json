@@ -11,6 +11,7 @@
   },
   "lander": {
     "checks": [
+      "just indent",
       "ninja -C build",
       {
         "command": "GST_PLUGIN_PATH=$PWD/build/gst .venv/bin/pytest -q -p no:cacheprovider tests",

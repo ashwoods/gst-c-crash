@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The style check uses GStreamer's own `gst-indent` 1.0.0 from PyPI instead of whatever GNU indent the system has, so macOS and Linux check with the same version. `just setup` installs it into `.venv`, `just indent` checks with it, the new `just fix-indent` rewrites files in place, and the pre-commit hook uses it. GitHub Actions runs `just indent` on every push.
+
+### Fixed
+- `gstcrash.c` and `gstleaky.c` follow GStreamer's style.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added
