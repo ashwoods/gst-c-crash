@@ -35,7 +35,7 @@ A refcount bug often shows up only as CRITICAL warnings like these. Make them
 crash where they happen, so a debugger or crash reporter gets the stack:
 
 ```sh
-G_DEBUG=fatal-criticals gst-launch-1.0 videotestsrc ! faulty num-buffers=5 method=unref ! fakesink
+G_DEBUG=fatal-criticals gst-launch-1.0 videotestsrc num-buffers=50 ! faulty num-buffers=5 method=unref ! fakesink
 ```
 
 ## valgrind (Linux)

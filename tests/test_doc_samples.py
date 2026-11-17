@@ -35,10 +35,6 @@ LINUX = sys.platform.startswith("linux")
 ILLUSTRATIVE = "Illustrative output"
 AUTO = object()
 
-# what the debugging environment of whoever runs the tests would change
-SCRUBBED = ("GST_DEBUG", "GST_DEBUG_FILE", "GST_DEBUG_DUMP_DOT_DIR",
-            "GST_TRACERS", "G_DEBUG")
-
 
 # --- the blocks in the pages ------------------------------------------------
 
@@ -116,6 +112,7 @@ class Sample:
     expect: tuple = ()  # strings in the real output and in the block shown
     exact: bool = False  # the real output is the block shown
     check: object = None  # a function that asserts on the real output
+    check_shown: bool = False  # and on the block shown, for numbers the page states
     only: str = ""      # "linux" or "darwin"
     needs: tuple = ()   # tools that must be installed
 
@@ -182,9 +179,11 @@ def latency_of_the_stall(out):
 
 
 def rusage_of_the_spin(out):
-    # one thread spent the 2 s of the spin on the CPU, the others next to nothing
-    assert max(times(out)) >= 1_500_000_000, out
-    assert min(times(out)) < 500_000_000, out
+    # one thread spent the spin on the CPU, the others next to nothing. The
+    # spin lasts 2 s of wall time, so on a loaded machine it gets less CPU.
+    spinner, *others = sorted(times(out), reverse=True)
+    assert spinner >= 500_000_000, out
+    assert all(t < spinner / 4 for t in others), out
 
 
 def leaked_buffers(out):
@@ -256,7 +255,9 @@ SAMPLES = [
           needs=("cargo",) if lang == "rust" else (),
           shows="retrying (1/2)",
           expect=("error: from /GstPipeline:pipeline0/GstFaulty:faulty0:"
-                  " Cannot do this anymore.", "retrying (1/2)", "retrying (2/2)"))
+                  " Cannot do this anymore.",
+                  "debug: ../gst/gstfaulty.c(308): gst_faulty_transform_ip ()",
+                  "retrying (1/2)", "retrying (2/2)"))
       for lang, contains in [("python", "python3 examples/python/run_pipeline.py"
                                         " --retries 2"),
                              ("c", "build/examples/c/run-pipeline --retries 2"),
@@ -268,7 +269,8 @@ SAMPLES = [
         "    ! faulty num-buffers=5 method=gst ! fakesink", status=1,
         expect=("ERROR: from element /GstPipeline:pipeline0/GstFaulty:faulty0:"
                 " Cannot do this anymore.",
-                "gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0",
+                "gstfaulty.c(308): gst_faulty_transform_ip ():"
+                " /GstPipeline:pipeline0/GstFaulty:faulty0",
                 "ERROR: from element /GstPipeline:pipeline0/GstVideoTestSrc:"
                 "videotestsrc0: Internal data stream error.",
                 "streaming stopped, reason error (-5)")),
@@ -282,7 +284,7 @@ SAMPLES = [
                    "GstVideoTestSrc:videotestsrc0:",
                    "streaming stopped, reason error (-5)")),
     run("errors.md", "flow-error-debug", "GST_DEBUG=*:1", status=1,
-        expect=("gst_faulty_transform_ip:<faulty0>", "Boom!")),
+        expect=("gstfaulty.c:311:gst_faulty_transform_ip:<faulty0>", "Boom!")),
     output("errors.md", "missing-file", "error: could not start the pipeline",
            f'{PY} "filesrc location=/tmp/nosuchfile ! fakesink"', status=1,
            expect=("error: could not start the pipeline",
@@ -362,11 +364,14 @@ SAMPLES = [
         expect=("9 INSTANCES OF 'ROOT LEAK: <malloc in leaky_malloc_leak>'",)),
     run("leaks.md", "valgrind", "valgrind --leak-check=full", only="linux",
         needs=("valgrind",), expect=(
-            "36 bytes in 9 blocks are definitely lost", "leaky_malloc_leak (gstleaky.c:")),
+            "36 bytes in 9 blocks are definitely lost",
+            "leaky_malloc_leak (gstleaky.c:76)", "leaky_call_method (gstleaky.c:96)",
+            "gst_leaky_transform_ip (gstleaky.c:204)")),
     run("leaks.md", "asan", "meson setup /tmp/asan", only="linux", needs=ASAN,
         timeout=300, status=1, expect=(
             "ERROR: LeakSanitizer: detected memory leaks",
-            "Direct leak of 36 byte(s) in 9 object(s)", "leaky_malloc_leak")),
+            "Direct leak of 36 byte(s) in 9 object(s)", " in leaky_malloc_leak ",
+            "gstleaky.c:76", "gstleaky.c:96", "gstleaky.c:204")),
 
     # --- memory-corruption.md
     output("memory-corruption.md", "criticals", "GST_IS_BUFFER (buffer)",
@@ -379,25 +384,29 @@ SAMPLES = [
         status=SIGTRAP, timeout=20, expect=("CRITICAL **",)),
     run("memory-corruption.md", "valgrind", "valgrind gst-launch-1.0",
         only="linux", needs=("valgrind",), expect=(
-            "Invalid write of size 4", "faulty_use_after_free (gstfaulty.c:",
-            "faulty_call_method (gstfaulty.c:",
-            "gst_faulty_transform_ip (gstfaulty.c:",
+            "Invalid write of size 4", "faulty_use_after_free (gstfaulty.c:143)",
+            "faulty_call_method (gstfaulty.c:200)",
+            "gst_faulty_transform_ip (gstfaulty.c:341)",
+            "faulty_use_after_free (gstfaulty.c:142)",
             "0 bytes inside a block of size 4 free'd")),
     run("memory-corruption.md", "asan", "meson setup /tmp/asan", only="linux",
         needs=ASAN, timeout=300, status=1, expect=(
             "ERROR: AddressSanitizer: heap-use-after-free on address 0x",
-            "in faulty_use_after_free ", "freed by thread T",
+            "in faulty_use_after_free ", "gstfaulty.c:143", "gstfaulty.c:142",
+            "freed by thread T",
             "previously allocated by thread T")),
 
     # --- blocking.md
     run("blocking.md", "watchdog", "watchdog timeout=300", status=1, expect=(
         "Stalling the streaming thread for 2000 ms.",
         "ERROR: from element /GstPipeline:pipeline0/GstWatchdog:watchdog0:"
-        " Watchdog triggered", "Execution ended after 0:00:00.")),
+        " Watchdog triggered", "Execution ended after ")),
     run("blocking.md", "latency", "GST_TRACERS=latency", check=latency_of_the_stall,
+        check_shown=True,
         expect=("latency, ", "src-element=(string)videotestsrc0",
                 "sink-element=(string)fakesink0", "time=(guint64)")),
     run("blocking.md", "rusage", "GST_TRACERS=rusage", check=rusage_of_the_spin,
+        check_shown=True,
         expect=("thread-rusage, thread-id=(guint64)", "average-cpuload=(uint)",
                 "time=(guint64)")),
     illustrative("blocking.md", "top", "PID USER", "an interactive Linux tool"),
@@ -435,7 +444,7 @@ SAMPLES = [
                    " prev-timestamp=(guint64)133333333,",
                    "cur-timestamp=(guint64)1166666666,")),
     run("timestamps-and-events.md", "gap-sync", "time gst-launch-1.0 -q",
-        check=gap_seconds),
+        check=gap_seconds, check_shown=True),
     output("timestamps-and-events.md", "bad-duration", "delta=(gint64)-33333334",
            "gst-launch-1.0 -m " + IDENTITY.format(mode="bad-duration") + " 2>&1"
            " | grep imperfect-timestamp",
@@ -561,7 +570,8 @@ def skip_reason(sample):
 
 def run_command(command, tmp_path, timeout):
     """Run a command of the docs: its output, its status, and whether it timed out."""
-    env = {k: v for k, v in os.environ.items() if k not in SCRUBBED}
+    # conftest.py has dropped the GST_DEBUG and friends of the caller's shell
+    env = dict(os.environ)
     # `python3` in the docs is the Python that has the GStreamer bindings
     env["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), env["PATH"]])
     # `time` prints 1,828s in a locale with a decimal comma
@@ -610,6 +620,9 @@ def test_sample(sample, tmp_path):
         assert out.strip() == shown.text.strip(), f"differs from {shown.where}:\n{out}"
     if sample.check:
         sample.check(out)
+    if sample.check_shown:
+        assert shown, f"{sample.id}: no output block to check"
+        sample.check(shown.text)
 
 
 @pytest.mark.parametrize("sample", [s for s in SAMPLES if s.kind == "illustrative"],

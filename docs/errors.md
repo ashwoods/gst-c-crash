@@ -112,7 +112,9 @@ Additional debug info:
 ../gst/gstfaulty.c(308): gst_faulty_transform_ip (): /GstPipeline:pipeline0/GstFaulty:faulty0
 ERROR: from element /GstPipeline:pipeline0/GstVideoTestSrc:videotestsrc0: Internal data stream error.
 Additional debug info:
+…/gstbasesrc.c(3187): gst_base_src_loop (): /GstPipeline:pipeline0/GstVideoTestSrc:videotestsrc0:
 streaming stopped, reason error (-5)
+…
 ```
 
 The first is the cause; the source's `Internal data stream error` is only its

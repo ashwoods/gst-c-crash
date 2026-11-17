@@ -209,7 +209,7 @@ valgrind --leak-check=full gst-launch-1.0 -q videotestsrc num-buffers=110 ! leak
 …
 ```
 
-AddressSanitizer needs the plugin built with it, and its runtime preloaded,
+For AddressSanitizer, build the plugin with it and preload its runtime,
 since gst-launch-1.0 itself is not instrumented:
 
 ```sh
