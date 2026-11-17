@@ -24,7 +24,7 @@ own bug does.
 
 On macOS `gst-launch-1.0` dies at once:
 
-```
+```text title="Illustrative output: the shell's message on macOS"
 Setting pipeline to PLAYING ...
 Segmentation fault: 11
 ```
@@ -54,7 +54,7 @@ gdb -ex run --args gst-launch-1.0 --no-fault videotestsrc num-buffers=50 \
     ! faulty num-buffers=5 method=custom ! fakesink           # Linux
 ```
 
-```
+```text title="Illustrative output: lldb on macOS"
 * thread #8, name = 'videotestsrc0:src', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
     frame #0: 0x0000000108e57a54 libgstcrash.dylib`faulty_custom_method(buf=0x00000075692803c0) at gstfaulty.c:115:23
    112 	{
@@ -73,7 +73,7 @@ macOS writes a report for every crashed process to
 lists them under Crash Reports. The report is JSON (`.ips`) and holds every
 thread's stack, symbolicated from the plugin's debug information:
 
-```
+```text title="Illustrative output: a macOS crash report, abridged"
 gst-launch-1.0-2026-11-17-101813.ips
   exception:      EXC_BAD_ACCESS (SIGSEGV), KERN_INVALID_ADDRESS at 0x0000000000000000
   crashed thread: 7, videotestsrc0:src
@@ -99,7 +99,7 @@ gst-launch-1.0 --no-fault -q videotestsrc num-buffers=50 ! faulty num-buffers=5 
 gdb -batch -ex bt $(which gst-launch-1.0) core
 ```
 
-```
+```text title="Illustrative output: gdb on a core file, in Docker"
 Program terminated with signal SIGSEGV, Segmentation fault.
 #0  faulty_custom_method (buf=0xc86b7484b6c0) at ../../src/gst/gstfaulty.c:115
 115	  *(volatile int *) 0 = 0;
@@ -254,4 +254,7 @@ yours works for a GStreamer application:
 `tests/test_faulty.py` checks each method's exit signal, with
 `gst-launch-1.0 --no-fault` in a subprocess so the crash cannot take pytest
 down. `tests/test_examples.py` checks that every language's `supervise`
-reports the signal and restarts the child.
+reports the signal and restarts the child. `tests/test_doc_samples.py` runs
+the commands on this page and checks the output shown, except the debugger
+sessions, the macOS messages and reports and the core dump, which are marked
+illustrative.

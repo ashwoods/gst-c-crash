@@ -65,7 +65,9 @@ object-refings, …, type-name=(string)GstBuffer, address=(gpointer)0x79c8cdcf00
 ```
 
 The output is large (thousands of lines for 110 buffers): add
-`filters=GstBuffer` to the tracer's parameters to track one type only.
+`filters=GstBuffer` to the tracer's parameters to track one type only. The
+trace above is from macOS. On Linux the frames of GStreamer's own libraries
+have names, but the plugin's often print as `??` with only an address.
 
 ### In CI
 
@@ -190,15 +192,41 @@ global variable, and `leaks` counts only blocks nothing points to.
 
 On Linux (for example in `docker compose run --rm shell`) valgrind needs no
 rebuild, and AddressSanitizer is much faster but needs the plugin built with
-it; both report `36 bytes in 9 blocks` from `leaky_malloc_leak
-(gstleaky.c:76)`. LeakSanitizer and valgrind do not run on macOS arm64.
+it; both report 36 bytes in 9 blocks from `leaky_malloc_leak`, and each also
+lists the 16 KB block GLib allocates when it loads. LeakSanitizer and valgrind
+do not run on macOS arm64.
 
 ```sh
 valgrind --leak-check=full gst-launch-1.0 -q videotestsrc num-buffers=110 ! leaky ! fakesink
+```
 
+```
+==6== 36 bytes in 9 blocks are definitely lost in loss record 815 of 1,676
+==6==    at 0x48850C8: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-arm64-linux.so)
+==6==    by 0x5C12307: leaky_malloc_leak (gstleaky.c:76)
+==6==    by 0x5C1238F: leaky_call_method (gstleaky.c:96)
+==6==    by 0x5C127CF: gst_leaky_transform_ip (gstleaky.c:204)
+…
+```
+
+AddressSanitizer needs the plugin built with it, and its runtime preloaded,
+since gst-launch-1.0 itself is not instrumented:
+
+```sh
 meson setup /tmp/asan -Db_sanitize=address && ninja -C /tmp/asan
 GST_PLUGIN_PATH=/tmp/asan/gst LD_PRELOAD=$(gcc -print-file-name=libasan.so) \
     gst-launch-1.0 -q videotestsrc num-buffers=110 ! leaky ! fakesink
+```
+
+```
+==139==ERROR: LeakSanitizer: detected memory leaks
+…
+Direct leak of 36 byte(s) in 9 object(s) allocated from:
+    #0 0x… in __interceptor_malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
+    #1 0x… in leaky_malloc_leak ../../src/gst/gstleaky.c:76
+    #2 0x… in leaky_call_method ../../src/gst/gstleaky.c:96
+    #3 0x… in gst_leaky_transform_ip ../../src/gst/gstleaky.c:204
+…
 ```
 
 ## Growth that is not a leak
@@ -214,4 +242,6 @@ piling up. A queue's `current-level-buffers` property shows it directly.
 `tests/test_leaky.py` counts `ref` leaks with the leaks tracer and `malloc`
 leaks with macOS `leaks` (skipped elsewhere). `tests/test_examples.py` checks
 that every language's `leak-check` finds the 10 buffers, and finds nothing
-with `method=malloc`.
+with `method=malloc`. `tests/test_doc_samples.py` runs every command on this
+page and checks the output shown, valgrind and AddressSanitizer included on
+Linux.

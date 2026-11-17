@@ -41,8 +41,6 @@ ERROR: from element /GstPipeline:pipeline0/GstQTMux:qtmux0: Could not multiplex 
 Additional debug info:
 …/gstqtmux.c(5936): gst_qt_mux_add_buffer (): /GstPipeline:pipeline0/GstQTMux:qtmux0:
 Buffer has no PTS.
-…
-ERROR: from element /GstPipeline:pipeline0/GstVideoTestSrc:videotestsrc0: Internal data stream error.
 ```
 
 The exit status is 1. matroskamux is more forgiving: it drops each buffer
@@ -285,4 +283,5 @@ and GStreamer's warning for the two `num-buffers=0` modes, and 16 caps events
 for `sticky-storm`. Every mode must also leave a stream that ends before
 `num-buffers` buffers untouched. The gst-validate tests (`drop-segment`,
 `sticky-storm`) are skipped where `gst-validate-1.0` is not installed, as in
-the Docker image: Debian has no package for it.
+the Docker image: Debian has no package for it. `tests/test_doc_samples.py`
+runs every command on this page and checks the output shown.

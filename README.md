@@ -189,8 +189,9 @@ triggers a watchdog and recovers, that `spin` burns CPU time and that
 `deadlock` blocks the pipeline and a property read. Each mangler mode runs in
 one too, and the test checks what an element or muxer downstream sees; the
 gst-validate tests skip where `gst-validate-1.0` is missing, as in Docker
-(Debian has no package for it). GitHub Actions runs
-`docker compose run --rm test`, valgrind included, on every push.
+(Debian has no package for it). `tests/test_doc_samples.py` runs the commands
+in the docs and in this README and checks the output they show. GitHub
+Actions runs `docker compose run --rm test`, valgrind included, on every push.
 
 The code follows GStreamer's style, checked with GStreamer's own
 [gst-indent](https://gitlab.freedesktop.org/gstreamer/gst-indent), a fork of
