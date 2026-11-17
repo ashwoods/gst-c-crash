@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/` has three small applications, each in Python, C and Rust: `run-pipeline` (watches the bus, checks state changes, retries errors, detects stalls, stops with a deadline), `supervise` (runs the pipeline in a child process and restarts it when it crashes) and `leak-check` (counts the objects a run leaves alive with the leaks tracer's checkpoints). `ninja` builds the C ones; `tests/test_examples.py` runs all three languages, and the Docker image now has Rust.
 - A documentation site built with Material for MkDocs from `docs/`, with the examples in linked language tabs. A GitHub Actions workflow builds it on every push and publishes master to GitHub Pages; `just docs` serves it locally.
 
+### Changed
+- The style check uses GStreamer's own `gst-indent` 1.0.0 from PyPI instead of whatever GNU indent the system has, so macOS and Linux check with the same version. `just setup` installs it into `.venv`, `just indent` checks with it, the new `just fix-indent` rewrites files in place, and the pre-commit hook uses it. GitHub Actions runs `just indent` on every push.
+
+### Fixed
+- `gstcrash.c` and `gstleaky.c` follow GStreamer's style.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

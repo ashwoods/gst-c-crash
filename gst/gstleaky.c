@@ -137,7 +137,7 @@ gst_leaky_class_init (GstLeakyClass * klass)
   gobject_class = G_OBJECT_CLASS (klass);
   gstelement_class = GST_ELEMENT_CLASS (klass);
   trans_class = GST_BASE_TRANSFORM_CLASS (klass);
-  
+
   gobject_class->set_property = gst_leaky_set_property;
   gobject_class->get_property = gst_leaky_get_property;
 
@@ -150,7 +150,7 @@ gst_leaky_class_init (GstLeakyClass * klass)
   gst_element_class_add_static_pad_template (gstelement_class, &srctemplate);
   gst_element_class_add_static_pad_template (gstelement_class, &sinktemplate);
 
-  
+
   trans_class->transform_ip = GST_DEBUG_FUNCPTR (gst_leaky_transform_ip);
   trans_class->start = GST_DEBUG_FUNCPTR (gst_leaky_start);
 
@@ -171,8 +171,8 @@ gst_leaky_class_init (GstLeakyClass * klass)
 static void
 gst_leaky_init (GstLeaky * leaky)
 {
-  
-  
+
+
   GstBaseTransform *trans = GST_BASE_TRANSFORM (leaky);
   gst_base_transform_set_in_place (trans, TRUE);
   gst_base_transform_set_passthrough (trans, TRUE);
@@ -212,7 +212,7 @@ gst_leaky_set_property (GObject * object, guint prop_id,
 {
   GstLeaky *leaky;
 
-  leaky = GST_LEAKY(object);
+  leaky = GST_LEAKY (object);
 
   switch (prop_id) {
     case PROP_METHOD:
@@ -248,4 +248,3 @@ gst_leaky_get_property (GObject * object, guint prop_id, GValue * value,
       break;
   }
 }
-

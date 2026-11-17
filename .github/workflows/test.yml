@@ -5,6 +5,15 @@ on:
   pull_request:
 
 jobs:
+  indent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gst-indent and just
+        run: python3 -m venv .venv && .venv/bin/pip install gst-indent==1.0.0 rust-just
+      - name: Check the style
+        run: .venv/bin/just indent
+
   test:
     runs-on: ubuntu-latest
     steps:
