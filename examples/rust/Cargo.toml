@@ -1,0 +1,11 @@
+[package]
+name = "gst-c-crash-examples"
+version = "0.1.0"
+edition = "2021"
+description = "Example applications that handle the crashes, errors and leaks of the faulty and leaky elements"
+publish = false
+
+[dependencies]
+# GStreamer 1.22 is the oldest version these examples build against
+gstreamer = { version = "0.25", features = ["v1_18"] }
+libc = "0.2"

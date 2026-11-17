@@ -11,6 +11,9 @@ x-base: &BASE
       - ./tests:/tests   
     environment:
       - GST_PLUGIN_PATH=/src/build/gst/
+      # keep the Linux Rust artifacts apart from a native build's
+      - CARGO_TARGET_DIR=/src/build/rust
+      - CARGO_HOME=/src/build/cargo
       - GST_DEBUG
 
 # targets
@@ -19,7 +22,7 @@ services:
   # Docker service target for development and testing
   build:  
     <<: *BASE  
-    command: /bin/bash -c "meson build/ && ninja -C build/"
+    command: /bin/bash -c "meson build/ && ninja -C build/ && cargo build --manifest-path examples/rust/Cargo.toml"
   shell: 
     <<: *BASE  
     command: /bin/bash 
@@ -28,5 +31,6 @@ services:
     # the faulty tests crash on purpose: no core dumps in the repository
     ulimits:
       core: 0
-    command: pytest -s /tests
+    # from /src, so test_examples.py finds the examples next to the tests
+    command: pytest -s /src/tests
 
